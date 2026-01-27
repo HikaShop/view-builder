@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<extension type="plugin" group="system" method="upgrade">
+	<name>plg_system_viewbuilder</name>
+	<author>HikaShop</author>
+	<creationDate>2026-01</creationDate>
+	<copyright>(C) 2026 HikaShop. All rights reserved.</copyright>
+	<license>GNU General Public License version 2 or later</license>
+	<version>1.0.0</version>
+	<description>PLG_SYSTEM_VIEWBUILDER_XML_DESCRIPTION</description>
+	<namespace path="src">Joomla\Plugin\System\ViewBuilder</namespace>
+	<files>
+		<folder plugin="viewbuilder">services</folder>
+		<folder>src</folder>
+		<folder>tmpl</folder>
+		<folder>cache</folder>
+	</files>
+	<media destination="plg_system_viewbuilder" folder="media">
+		<folder>css</folder>
+		<folder>js</folder>
+	</media>
+	<languages>
+		<language tag="en-GB">language/en-GB/plg_system_viewbuilder.ini</language>
+		<language tag="en-GB">language/en-GB/plg_system_viewbuilder.sys.ini</language>
+	</languages>
+	<config>
+		<fields name="params">
+			<fieldset name="basic">
+				<field
+					name="active"
+					type="list"
+					label="PLG_SYSTEM_VIEWBUILDER_ACTIVE"
+					description="PLG_SYSTEM_VIEWBUILDER_ACTIVE_DESC"
+					default="0"
+				>
+					<option value="0">JDISABLED</option>
+					<option value="1">PLG_SYSTEM_VIEWBUILDER_FRONTEND_ONLY</option>
+					<option value="2">PLG_SYSTEM_VIEWBUILDER_FRONTEND_AND_BACKEND</option>
+					<option value="3">PLG_SYSTEM_VIEWBUILDER_WITH_TP_PARAM</option>
+				</field>
+				<field
+					name="allowed_groups"
+					type="usergrouplist"
+					label="PLG_SYSTEM_VIEWBUILDER_ALLOWED_GROUPS"
+					description="PLG_SYSTEM_VIEWBUILDER_ALLOWED_GROUPS_DESC"
+					multiple="true"
+					default="8"
+					layout="joomla.form.field.list-fancy-select"
+				/>
+				<field
+					name="excluded_components"
+					type="text"
+					label="PLG_SYSTEM_VIEWBUILDER_EXCLUDED_COMPONENTS"
+					description="PLG_SYSTEM_VIEWBUILDER_EXCLUDED_COMPONENTS_DESC"
+					default=""
+				/>
+			</fieldset>
+		</fields>
+	</config>
+</extension>
