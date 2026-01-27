@@ -60,12 +60,13 @@ The plugin utilizes a modern Joomla 5/6 architecture:
 - Joomla 4.0+ / 5.x / 6.x
 - PHP 7.4 or higher recommended
 
-## �‍💻 Author
+## 🥷 Author
 
 Developed by **Hikari Software**.  
 Visit us at [www.hikashop.com](https://www.hikashop.com).
 
-## �📄 License
+## 📄 License
 
 GNU General Public License version 2 or later.  
 Copyright (C) 2026 Hikari Software. All rights reserved.
+
