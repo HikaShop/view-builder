@@ -40,9 +40,9 @@ Reorder blocks within a view file using a drag-and-drop interface.
 ## 🚀 Installation
 
 1. Download the plugin package.
-   2. Install via the Joomla Extension Manager.
-   3. Go to **System > Plugins** and enable the plugin `System - View Builder`.
-   4. **Important**: In the plugin settings, make sure to set the **Active** option to your preferred mode (e.g., "Frontend only") for the builder to appear on your site.
+2. Install via the Joomla Extension Manager.
+3. Go to **System > Plugins** and enable the plugin `System - View Builder`.
+4. **Important**: In the plugin settings, make sure to set the **Active** option to your preferred mode (e.g., "Frontend only") for the builder to appear on your site.
 
 ## ⚙️ Configuration
 
