@@ -14,6 +14,29 @@ A powerful system plugin for Joomla that allows developers and administrators to
   - Or via `tp=1` URL parameter (Template Preview mode)
 - **Easy Revert**: One-click revert to delete the override and restore the original view.
 
+## 📸 Preview
+
+### In-Context Editing
+The plugin wraps view segments with labels and action buttons, allowing you to instantly identify and edit any part of the page.
+
+| Joomla Core | HikaShop |
+| :---: | :---: |
+| ![Joomla Wrapper](screenshots/wrapper-joomla.png) | ![HikaShop Wrapper](screenshots/wrapper-hikashop.png) |
+
+### Code Editor
+Edit the PHP/HTML code directly in your browser with tab support and keyboard shortcuts (Ctrl+S).
+
+| Joomla Core | HikaShop |
+| :---: | :---: |
+| ![Joomla Editor](screenshots/editor-joomla.png) | ![HikaShop Editor](screenshots/editor-hikashop.png) |
+
+### Visual Builder
+Reorder blocks within a view file using a drag-and-drop interface.
+
+| Joomla Core | HikaShop |
+| :---: | :---: |
+| ![Joomla Builder](screenshots/builder-joomla.png) | ![HikaShop Builder](screenshots/builder-hikashop.png) |
+
 ## 🚀 Installation
 
 1. Download the plugin package.
