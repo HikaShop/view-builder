@@ -63,6 +63,29 @@ Go to **System > Plugins > System - View Builder**.
    - The plugin uses secure AJAX requests to handle file operations.
    - If a PHP syntax error is introduced, the system will prevent the save and alert you.
 
+### 🧩 @block Delimiters
+
+While the plugin automatically detects many logical blocks (like `if`, `foreach`, or sub-templates), you can manually define movable segments using special HTML comments. This is refined for complex layouts where auto-detection might not be enough.
+
+Two styles are supported:
+
+**1. Explicit Style:**
+```html
+<!-- @block:MyFeature -->
+<div>... content to move ...</div>
+<!-- @endblock:MyFeature -->
+```
+
+**2. HikaShop Style:**
+```html
+<!-- MY_BLOCK -->
+<div>... content to move ...</div>
+<!-- EO MY_BLOCK -->
+```
+*(Note: "EO" stands for "End Of")*
+
+When the Visual Builder detects these delimiters, it treats the entire section as a single movable unit, ensuring your conditional logic and HTML structure stay together.
+
 ## 🏗 Architecture
 
 The plugin utilizes a modern Joomla 5/6 architecture:
