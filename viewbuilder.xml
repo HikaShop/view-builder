@@ -21,6 +21,9 @@
 		<language tag="en-GB">language/en-GB/plg_system_viewbuilder.ini</language>
 		<language tag="en-GB">language/en-GB/plg_system_viewbuilder.sys.ini</language>
 	</languages>
+	<updateservers>
+		<server type="extension" priority="1" name="View Builder Update Server">https://raw.githubusercontent.com/HikaShop/view-builder/main/update.xml</server>
+	</updateservers>
 	<config>
 		<fields name="params">
 			<fieldset name="basic">

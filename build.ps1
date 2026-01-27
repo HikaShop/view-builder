@@ -24,4 +24,9 @@ $includeItems = @(
 # Create the ZIP
 Compress-Archive -Path $includeItems -DestinationPath $zipName
 
-Write-Host "Build complete: $zipName" -ForegroundColor Green
+# Create a generic ZIP for the stable release link
+$stableZipName = "$($pluginName).zip"
+if (Test-Path $stableZipName) { Remove-Item $stableZipName }
+Compress-Archive -Path $includeItems -DestinationPath $stableZipName
+
+Write-Host "Build complete: $zipName and $stableZipName" -ForegroundColor Green
