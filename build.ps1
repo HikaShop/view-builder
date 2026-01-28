@@ -1,5 +1,5 @@
 # View Builder Plugin Build Script
-$version = "1.0.0"
+$version = "1.1.0"
 $pluginName = "plg_system_viewbuilder"
 $zipName = "$($pluginName)_v$($version).zip"
 
@@ -18,6 +18,7 @@ $includeItems = @(
     "language",
     "viewbuilder.xml",
     "README.md",
+    "CHANGELOG.md",
     "cache"
 )
 
