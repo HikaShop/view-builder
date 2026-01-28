@@ -41,7 +41,7 @@
 	line-height: 1.4;
 	padding: 5px 6px;
 	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-	white-space: nowrap;
+	word-break: break-all;
 	border-radius: 0 0 4px 0;
 	gap: 6px;
 	align-items: center;
@@ -269,4 +269,148 @@
 	font-size: 11px;
 	color: #999;
 	flex-shrink: 0;
+}
+
+/* ========================================================================
+   On-Page Mode
+   ======================================================================== */
+
+/* Depth 0 (top-level): Blue */
+.vb-onpage-block.vb-onpage-depth-0 {
+	position: relative;
+	outline: 1px dashed #4a90d9;
+	outline-offset: -1px;
+	transition: outline-color 0.2s;
+}
+.vb-onpage-block.vb-onpage-depth-0:hover {
+	outline: 2px solid #4a90d9;
+	outline-offset: -2px;
+	z-index: 100;
+}
+/* Depth 1 (child views): Green */
+.vb-onpage-block.vb-onpage-depth-1 {
+	position: relative;
+	outline: 1px dashed #6dbf67;
+	outline-offset: -1px;
+	transition: outline-color 0.2s;
+}
+.vb-onpage-block.vb-onpage-depth-1:hover {
+	outline: 2px solid #6dbf67;
+	outline-offset: -2px;
+	z-index: 101;
+}
+/* Depth 2 (grandchild views): Orange */
+.vb-onpage-block.vb-onpage-depth-2 {
+	position: relative;
+	outline: 1px dashed #d9904a;
+	outline-offset: -1px;
+	transition: outline-color 0.2s;
+}
+.vb-onpage-block.vb-onpage-depth-2:hover {
+	outline: 2px solid #d9904a;
+	outline-offset: -2px;
+	z-index: 102;
+}
+/* Depth 3+ (deep nesting): Red */
+.vb-onpage-block {
+	position: relative;
+	outline: 1px dashed #d95f4a;
+	outline-offset: -1px;
+	transition: outline-color 0.2s;
+}
+.vb-onpage-block:hover {
+	outline: 2px solid #d95f4a;
+	outline-offset: -2px;
+	z-index: 103;
+}
+
+/* Handle - base styles */
+.vb-onpage-handle {
+	display: none;
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: 1000;
+	background: #d95f4a;
+	color: #fff;
+	padding: 2px 8px;
+	cursor: grab;
+	font-size: 16px;
+	line-height: 1.2;
+	border-radius: 0 0 4px 0;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	user-select: none;
+}
+.vb-onpage-handle:active {
+	cursor: grabbing;
+}
+
+/* Edit button - base styles */
+.vb-onpage-edit {
+	display: none;
+	position: absolute;
+	top: 0;
+	right: 0;
+	z-index: 1000;
+	background: #d95f4a;
+	color: #fff;
+	border: none;
+	padding: 2px 8px;
+	cursor: pointer;
+	font-size: 14px;
+	line-height: 1.4;
+	border-radius: 0 0 0 4px;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.vb-onpage-edit:hover {
+	filter: brightness(0.85);
+}
+
+/* Show handle/edit only on direct hover (not when a child block is hovered) */
+.vb-onpage-block:hover > .vb-onpage-handle,
+.vb-onpage-block:hover > .vb-onpage-edit {
+	display: block;
+}
+
+/* Per-depth colors and offsets so handles from different levels don't overlap */
+.vb-onpage-depth-0 > .vb-onpage-handle { background: #4a90d9; z-index: 1000; }
+.vb-onpage-depth-0 > .vb-onpage-edit   { background: #4a90d9; z-index: 1000; }
+
+.vb-onpage-depth-1 > .vb-onpage-handle { background: #6dbf67; z-index: 1001; left: 28px; }
+.vb-onpage-depth-1 > .vb-onpage-edit   { background: #6dbf67; z-index: 1001; right: 28px; }
+
+.vb-onpage-depth-2 > .vb-onpage-handle { background: #d9904a; z-index: 1002; left: 56px; }
+.vb-onpage-depth-2 > .vb-onpage-edit   { background: #d9904a; z-index: 1002; right: 56px; }
+.vb-onpage-block.vb-onpage-ghost {
+	opacity: 0.4;
+	outline: 2px dashed #5cb85c;
+}
+.vb-onpage-block.vb-onpage-drag {
+	box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+	z-index: 10000;
+}
+
+/* On-page notification toast */
+.vb-onpage-notification {
+	position: fixed;
+	bottom: 20px;
+	right: 20px;
+	z-index: 100000;
+	padding: 10px 20px;
+	border-radius: 6px;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-size: 13px;
+	color: #fff;
+	box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+	transition: opacity 0.4s, transform 0.4s;
+}
+.vb-onpage-notification-success {
+	background: #5cb85c;
+}
+.vb-onpage-notification-error {
+	background: #d9534f;
+}
+.vb-onpage-notification-hide {
+	opacity: 0;
+	transform: translateY(10px);
 }

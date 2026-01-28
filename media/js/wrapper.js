@@ -329,73 +329,128 @@
 				});
 			});
 
-			status.textContent = 'Saving new order...';
+			// Build original order from parse data and new order names
+			var originalOrder = blocks.map(function(b) { return b.name; });
+			var newOrderNames = newOrder.map(function(b) { return b.name; });
 
-			var lines = fileData.content.split('\n');
-			var blockContents = [];
-			var usedRanges = [];
-
-			// Extract block contents based on original line numbers
-			newOrder.forEach(function(block) {
-				var startIdx = block.original_line_start - 1;
-				var endIdx = block.original_line_end;
-				blockContents.push(lines.slice(startIdx, endIdx).join('\n'));
-				usedRanges.push({ start: startIdx, end: endIdx });
+			// Check if order actually changed
+			var orderChanged = originalOrder.some(function(name, i) {
+				return name !== newOrderNames[i];
 			});
 
-			// Sort used ranges by start position to process
-			var sortedRanges = usedRanges.slice().sort(function(a, b) { return a.start - b.start; });
+			if (!orderChanged) {
+				status.textContent = 'No changes to save.';
+				return;
+			}
 
-			// Build new file: keep non-block lines, replace block positions with reordered blocks
-			var result = [];
-			var blockIdx = 0;
-			var currentLine = 0;
+			// Helper function to perform the actual save
+			function doSaveReorder() {
+				status.textContent = 'Saving new order...';
 
-			sortedRanges.forEach(function(range) {
-				// Add non-block lines before this range
-				while (currentLine < range.start) {
+				var lines = fileData.content.split('\n');
+				var blockContents = [];
+				var usedRanges = [];
+
+				// Extract block contents based on original line numbers
+				newOrder.forEach(function(block) {
+					var startIdx = block.original_line_start - 1;
+					var endIdx = block.original_line_end;
+					blockContents.push(lines.slice(startIdx, endIdx).join('\n'));
+					usedRanges.push({ start: startIdx, end: endIdx });
+				});
+
+				// Sort used ranges by start position to process
+				var sortedRanges = usedRanges.slice().sort(function(a, b) { return a.start - b.start; });
+
+				// Build new file: keep non-block lines, replace block positions with reordered blocks
+				var result = [];
+				var blockIdx = 0;
+				var currentLine = 0;
+
+				sortedRanges.forEach(function(range) {
+					// Add non-block lines before this range
+					while (currentLine < range.start) {
+						result.push(lines[currentLine]);
+						currentLine++;
+					}
+					// Insert the next block in the new order
+					result.push(blockContents[blockIdx]);
+					blockIdx++;
+					currentLine = range.end;
+				});
+
+				// Add remaining lines after all blocks
+				while (currentLine < lines.length) {
 					result.push(lines[currentLine]);
 					currentLine++;
 				}
-				// Insert the next block in the new order
-				result.push(blockContents[blockIdx]);
-				blockIdx++;
-				currentLine = range.end;
-			});
 
-			// Add remaining lines after all blocks
-			while (currentLine < lines.length) {
-				result.push(lines[currentLine]);
-				currentLine++;
+				var newContent = result.join('\n');
+
+				var formData = new FormData();
+				formData.append('file', filePath);
+				formData.append('content', newContent);
+
+				fetch(ajaxUrl + '&task=save', {
+					method: 'POST',
+					body: formData
+				})
+				.then(function(r) { return r.json(); })
+				.then(function(resp) {
+					var d = unwrapResponse(resp);
+					if (d.success) {
+						status.textContent = 'Order saved to override. Reload the page to see changes.';
+						status.style.color = '';
+					} else if (d.syntax_error) {
+						status.textContent = 'NOT SAVED \u2013 The new order produces invalid PHP: ' + d.message;
+						status.style.color = '#d9534f';
+					} else {
+						status.textContent = 'Save failed: ' + (d.message || 'Unknown error');
+						status.style.color = '#d9534f';
+					}
+				})
+				.catch(function(err) {
+					status.textContent = 'Save error: ' + err.message;
+					status.style.color = '#d9534f';
+				});
 			}
 
-			var newContent = result.join('\n');
+			// First, check for dependency issues
+			status.textContent = 'Checking dependencies...';
+			var checkData = new FormData();
+			checkData.append('file', filePath);
+			originalOrder.forEach(function(name) { checkData.append('original_order[]', name); });
+			newOrderNames.forEach(function(name) { checkData.append('new_order[]', name); });
 
-			var formData = new FormData();
-			formData.append('file', filePath);
-			formData.append('content', newContent);
-
-			fetch(ajaxUrl + '&task=save', {
+			fetch(ajaxUrl + '&task=check_reorder', {
 				method: 'POST',
-				body: formData
+				body: checkData
 			})
 			.then(function(r) { return r.json(); })
 			.then(function(resp) {
 				var d = unwrapResponse(resp);
-				if (d.success) {
-					status.textContent = 'Order saved to override. Reload the page to see changes.';
-					status.style.color = '';
-				} else if (d.syntax_error) {
-					status.textContent = 'NOT SAVED \u2013 The new order produces invalid PHP: ' + d.message;
-					status.style.color = '#d9534f';
-				} else {
-					status.textContent = 'Save failed: ' + (d.message || 'Unknown error');
-					status.style.color = '#d9534f';
+				if (d.dependency_warning) {
+					var msg = 'Reordering may cause issues:\n\n';
+					d.warnings.forEach(function(w) {
+						msg += '\u2022 Block "' + w.block + '" ' +
+							(w.direction === 'loses_definitions'
+								? 'uses: '
+								: 'defines: ') +
+							w.variables.map(function(v) { return '$' + v; }).join(', ') + '\n';
+					});
+					msg += '\nSave anyway?';
+					if (!confirm(msg)) {
+						status.textContent = 'Save cancelled.';
+						return;
+					}
 				}
+				// Proceed with actual save
+				doSaveReorder();
 			})
 			.catch(function(err) {
-				status.textContent = 'Save error: ' + err.message;
-				status.style.color = '#d9534f';
+				// If check fails, still allow save (fail-open)
+				console.warn('Dependency check failed:', err);
+				doSaveReorder();
 			});
 		});
 
@@ -433,5 +488,306 @@
 		var div = document.createElement('div');
 		div.textContent = str;
 		return div.innerHTML;
+	}
+
+	// ========================================================================
+	// On-Page Mode
+	// ========================================================================
+
+	var onpageSortables = [];
+
+	// Click handler for on-page edit buttons
+	document.addEventListener('click', function(e) {
+		var editBtn = e.target.closest('.vb-onpage-edit');
+		if (editBtn) {
+			e.preventDefault();
+			e.stopPropagation();
+			openBlockEditor(editBtn.dataset.vbBlock, editBtn.dataset.vbFile, editBtn.dataset.vbAjax);
+		}
+	});
+
+	function openBlockEditor(blockName, filePath, ajaxUrl) {
+		fetch(ajaxUrl + '&task=load_block&file=' + encodeURIComponent(filePath) + '&block=' + encodeURIComponent(blockName))
+			.then(function(r) { return r.json(); })
+			.then(function(resp) {
+				var data = unwrapResponse(resp);
+				if (!data.success) {
+					alert('Error loading block: ' + (data.message || 'Unknown error'));
+					return;
+				}
+				showBlockEditorModal(data, blockName, filePath, ajaxUrl);
+			})
+			.catch(function(err) {
+				alert('Error: ' + err.message);
+			});
+	}
+
+	function showBlockEditorModal(data, blockName, filePath, ajaxUrl) {
+		closeModal();
+
+		var overlay = document.createElement('div');
+		overlay.className = 'vb-modal-overlay';
+		overlay.addEventListener('click', function(e) {
+			if (e.target === overlay) closeModal();
+		});
+
+		var modal = document.createElement('div');
+		modal.className = 'vb-modal';
+
+		var shortName = filePath.replace(/\\/g, '/').split('/').slice(-3).join('/');
+
+		var header = document.createElement('div');
+		header.className = 'vb-modal-header';
+		header.innerHTML = '<div class="vb-modal-title">Block: ' + escapeHtml(blockName) + ' <span style="color:#999;font-size:11px;">in ' + escapeHtml(shortName) + '</span></div>' +
+			'<div class="vb-modal-actions">' +
+			'<button type="button" class="vb-save-btn">Save Block</button>' +
+			'<button type="button" class="vb-close-btn">Close</button>' +
+			'</div>';
+
+		var body = document.createElement('div');
+		body.className = 'vb-modal-body';
+
+		var textarea = document.createElement('textarea');
+		textarea.value = data.content;
+		textarea.spellcheck = false;
+		textarea.addEventListener('keydown', function(e) {
+			if (e.key === 'Tab') {
+				e.preventDefault();
+				var start = this.selectionStart;
+				var end = this.selectionEnd;
+				this.value = this.value.substring(0, start) + '\t' + this.value.substring(end);
+				this.selectionStart = this.selectionEnd = start + 1;
+			}
+			if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+				e.preventDefault();
+				saveBlock();
+			}
+		});
+		body.appendChild(textarea);
+
+		var status = document.createElement('div');
+		status.className = 'vb-modal-status';
+		status.textContent = 'Editing block "' + blockName + '". Use Ctrl+S to save.';
+
+		modal.appendChild(header);
+		modal.appendChild(body);
+		modal.appendChild(status);
+		overlay.appendChild(modal);
+		document.body.appendChild(overlay);
+		currentModal = overlay;
+
+		textarea.focus();
+
+		var saveBtn = header.querySelector('.vb-save-btn');
+		var closeBtn = header.querySelector('.vb-close-btn');
+
+		function saveBlock() {
+			status.textContent = 'Saving block...';
+			var formData = new FormData();
+			formData.append('file', filePath);
+			formData.append('block', blockName);
+			formData.append('content', textarea.value);
+
+			fetch(ajaxUrl + '&task=save_block', {
+				method: 'POST',
+				body: formData
+			})
+			.then(function(r) { return r.json(); })
+			.then(function(resp) {
+				var d = unwrapResponse(resp);
+				if (d.success) {
+					status.textContent = 'Block saved. Reload the page to see changes.';
+					status.style.color = '';
+				} else if (d.syntax_error) {
+					status.textContent = 'NOT SAVED \u2013 ' + d.message;
+					status.style.color = '#d9534f';
+				} else {
+					status.textContent = 'Save failed: ' + (d.message || 'Unknown error');
+					status.style.color = '#d9534f';
+				}
+			})
+			.catch(function(err) {
+				status.textContent = 'Save error: ' + err.message;
+				status.style.color = '#d9534f';
+			});
+		}
+
+		saveBtn.addEventListener('click', saveBlock);
+		closeBtn.addEventListener('click', closeModal);
+		document.addEventListener('keydown', escHandler);
+	}
+
+	/**
+	 * Initialize on-page SortableJS for drag-and-drop block reordering.
+	 * Groups blocks by file + depth + parent DOM node, so that only actual
+	 * sibling blocks share a Sortable instance. This is critical for nested
+	 * views: child blocks (depth 1+) may live in different parent containers
+	 * than top-level blocks, and SortableJS requires draggable items to be
+	 * direct children of the container.
+	 */
+	function initOnPageSortable() {
+		var blocks = document.querySelectorAll('.vb-onpage-block');
+		if (blocks.length === 0) return;
+
+		// Group blocks by file + depth + actual parentNode.
+		// We use a Map keyed by parentNode so we can sub-group properly.
+		var fileDepthGroups = {};
+		blocks.forEach(function(block) {
+			var key = block.dataset.vbFile + '::' + block.dataset.vbDepth;
+			if (!fileDepthGroups[key]) {
+				fileDepthGroups[key] = [];
+			}
+			fileDepthGroups[key].push(block);
+		});
+
+		// For each file+depth group, sub-group by parentNode
+		Object.keys(fileDepthGroups).forEach(function(key) {
+			var groupBlocks = fileDepthGroups[key];
+			var file = groupBlocks[0].dataset.vbFile;
+			var depth = groupBlocks[0].dataset.vbDepth;
+
+			// Sub-group by actual parent DOM node
+			var parentMap = new Map();
+			groupBlocks.forEach(function(block) {
+				var parent = block.parentNode;
+				if (!parentMap.has(parent)) {
+					parentMap.set(parent, []);
+				}
+				parentMap.get(parent).push(block);
+			});
+
+			// Init Sortable on each parent that has at least 2 sibling blocks
+			parentMap.forEach(function(siblingBlocks, parent) {
+				if (siblingBlocks.length < 2) return;
+
+				var ajaxUrl = siblingBlocks[0].dataset.vbAjax;
+
+				var instance = Sortable.create(parent, {
+					animation: 150,
+					handle: '.vb-onpage-handle-' + depth,
+					draggable: '.vb-onpage-block[data-vb-file="' + file.replace(/"/g, '\\"') + '"][data-vb-depth="' + depth + '"]',
+					ghostClass: 'vb-onpage-ghost',
+					dragClass: 'vb-onpage-drag',
+					onEnd: function(evt) {
+						var movedBlock = evt.item;
+						var blockName = movedBlock.dataset.vbBlock;
+
+						// Determine the block that is now before the moved block (same file + depth)
+						var prevSibling = movedBlock.previousElementSibling;
+						var afterBlock = '';
+						while (prevSibling) {
+							if (prevSibling.classList.contains('vb-onpage-block') &&
+								prevSibling.dataset.vbFile === file &&
+								prevSibling.dataset.vbDepth === depth) {
+								afterBlock = prevSibling.dataset.vbBlock;
+								break;
+							}
+							prevSibling = prevSibling.previousElementSibling;
+						}
+
+						// Send AJAX move request
+						var formData = new FormData();
+						formData.append('file', file);
+						formData.append('block', blockName);
+						formData.append('after', afterBlock);
+
+						fetch(ajaxUrl + '&task=move_block', {
+							method: 'POST',
+							body: formData
+						})
+						.then(function(r) { return r.json(); })
+						.then(function(resp) {
+							var d = unwrapResponse(resp);
+							if (d.success) {
+								showOnPageNotification('Block moved successfully.', 'success');
+							} else if (d.dependency_warning) {
+								// Build human-readable warning message
+								var msg = 'Moving this block may cause issues:\n\n';
+								d.warnings.forEach(function(w) {
+									msg += '\u2022 Block "' + w.block + '" ' +
+										(w.direction === 'loses_definitions'
+											? 'uses variables defined here: '
+											: 'defines variables used here: ') +
+										w.variables.map(function(v) { return '$' + v; }).join(', ') + '\n';
+								});
+								msg += '\nProceed anyway?';
+
+								if (confirm(msg)) {
+									// Re-send with force=1
+									var forceData = new FormData();
+									forceData.append('file', file);
+									forceData.append('block', blockName);
+									forceData.append('after', afterBlock);
+									forceData.append('force', '1');
+									fetch(ajaxUrl + '&task=move_block', {
+										method: 'POST',
+										body: forceData
+									})
+									.then(function(r) { return r.json(); })
+									.then(function(resp2) {
+										var d2 = unwrapResponse(resp2);
+										if (d2.success) {
+											showOnPageNotification('Block moved.', 'success');
+										} else {
+											showOnPageNotification('Move failed: ' + (d2.message || 'Error'), 'error');
+											location.reload();
+										}
+									});
+								} else {
+									// User cancelled - revert DOM to original state
+									location.reload();
+								}
+							} else if (d.syntax_error) {
+								showOnPageNotification('Move reverted \u2013 invalid PHP: ' + d.message, 'error');
+								location.reload();
+							} else {
+								showOnPageNotification('Move failed: ' + (d.message || 'Unknown error'), 'error');
+								location.reload();
+							}
+						})
+						.catch(function(err) {
+							showOnPageNotification('Move error: ' + err.message, 'error');
+							location.reload();
+						});
+					}
+				});
+
+				onpageSortables.push(instance);
+			});
+		});
+	}
+
+	function showOnPageNotification(message, type) {
+		var notif = document.createElement('div');
+		notif.className = 'vb-onpage-notification vb-onpage-notification-' + type;
+		notif.textContent = message;
+		document.body.appendChild(notif);
+		setTimeout(function() {
+			notif.classList.add('vb-onpage-notification-hide');
+			setTimeout(function() { notif.remove(); }, 400);
+		}, 3000);
+	}
+
+	// Initialize on-page sortable after DOM is ready and SortableJS is loaded
+	function initOnPage() {
+		if (document.querySelectorAll('.vb-onpage-block').length === 0) return;
+
+		if (typeof Sortable !== 'undefined') {
+			initOnPageSortable();
+		} else {
+			var script = document.createElement('script');
+			script.src = 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js';
+			script.onload = function() {
+				initOnPageSortable();
+			};
+			document.head.appendChild(script);
+		}
+	}
+
+	// Run after DOM is ready
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', initOnPage);
+	} else {
+		initOnPage();
 	}
 })();

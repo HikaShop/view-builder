@@ -5,7 +5,7 @@
 	<creationDate>2026-01</creationDate>
 	<copyright>(C) 2026 HikaShop. All rights reserved.</copyright>
 	<license>GNU General Public License version 2 or later</license>
-	<version>1.0.0</version>
+	<version>1.1.0</version>
 	<description>PLG_SYSTEM_VIEWBUILDER_XML_DESCRIPTION</description>
 	<namespace path="src">Joomla\Plugin\System\ViewBuilder</namespace>
 	<files>
@@ -48,6 +48,16 @@
 					default="8"
 					layout="joomla.form.field.list-fancy-select"
 				/>
+				<field
+					name="mode"
+					type="list"
+					label="PLG_SYSTEM_VIEWBUILDER_MODE"
+					description="PLG_SYSTEM_VIEWBUILDER_MODE_DESC"
+					default="onpage"
+				>
+					<option value="popup">PLG_SYSTEM_VIEWBUILDER_MODE_POPUP</option>
+					<option value="onpage">PLG_SYSTEM_VIEWBUILDER_MODE_ONPAGE</option>
+				</field>
 				<field
 					name="excluded_components"
 					type="text"
