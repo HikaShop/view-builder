@@ -19,6 +19,10 @@ A powerful system plugin for Joomla that allows developers and administrators to
 
 ## Preview
 
+### On-Page Editing (New default)
+Drag & drop blocks directly on the page to reorder them, or click the edit icon to modify specific code segments.
+![On-Page Editing](screenshots/on-page.png)
+
 ### In-Context Editing
 The plugin wraps view segments with labels and action buttons, allowing you to instantly identify and edit any part of the page.
 
