@@ -1,5 +1,5 @@
 # View Builder Plugin Build Script
-$version = "1.1.0"
+$version = "1.1.1"
 $pluginName = "plg_system_viewbuilder"
 $zipName = "$($pluginName)_v$($version).zip"
 

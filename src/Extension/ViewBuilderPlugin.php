@@ -5,6 +5,7 @@ namespace Joomla\Plugin\System\ViewBuilder\Extension;
 use Joomla\CMS\Event\Application\BeforeCompileHeadEvent;
 use Joomla\CMS\Event\Plugin\AjaxEvent;
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
 use Joomla\CMS\Plugin\CMSPlugin;
 use Joomla\CMS\Session\Session;
 use Joomla\Event\SubscriberInterface;
@@ -30,6 +31,8 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 		if (!$this->isActive()) {
 			return;
 		}
+
+		$this->loadLanguage();
 
 		ViewBuilderHelper::init($this->params);
 
@@ -60,6 +63,63 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 		$wa = $doc->getWebAssetManager();
 		$wa->registerAndUseStyle('plg_system_viewbuilder.wrapper', 'media/plg_system_viewbuilder/css/wrapper.css');
 		$wa->registerAndUseScript('plg_system_viewbuilder.wrapper', 'media/plg_system_viewbuilder/js/wrapper.js', [], ['defer' => true]);
+
+		// Register language strings for JavaScript
+		$jsKeys = [
+			'PLG_SYSTEM_VIEWBUILDER_JS_ERROR_LOADING_FILE',
+			'PLG_SYSTEM_VIEWBUILDER_JS_ERROR',
+			'PLG_SYSTEM_VIEWBUILDER_JS_OVERRIDE_LABEL',
+			'PLG_SYSTEM_VIEWBUILDER_JS_ORIGINAL_LABEL',
+			'PLG_SYSTEM_VIEWBUILDER_JS_REVERT_TO_ORIGINAL',
+			'PLG_SYSTEM_VIEWBUILDER_JS_SAVE_AS_OVERRIDE',
+			'PLG_SYSTEM_VIEWBUILDER_JS_CLOSE',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FILE_LOADED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_SAVING',
+			'PLG_SYSTEM_VIEWBUILDER_JS_SAVED_TO',
+			'PLG_SYSTEM_VIEWBUILDER_JS_NOT_SAVED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_SAVE_FAILED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_SAVE_ERROR',
+			'PLG_SYSTEM_VIEWBUILDER_JS_CONFIRM_REVERT',
+			'PLG_SYSTEM_VIEWBUILDER_JS_REVERTING',
+			'PLG_SYSTEM_VIEWBUILDER_JS_REVERTED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_BUILDER_TITLE',
+			'PLG_SYSTEM_VIEWBUILDER_JS_SAVE_ORDER',
+			'PLG_SYSTEM_VIEWBUILDER_JS_CODE_EDITOR',
+			'PLG_SYSTEM_VIEWBUILDER_JS_BUILDER',
+			'PLG_SYSTEM_VIEWBUILDER_JS_NO_BLOCKS',
+			'PLG_SYSTEM_VIEWBUILDER_JS_BLOCKS_DETECTED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_ORDER_CHANGED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_NO_CHANGES',
+			'PLG_SYSTEM_VIEWBUILDER_JS_SAVING_ORDER',
+			'PLG_SYSTEM_VIEWBUILDER_JS_ORDER_SAVED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_NOT_SAVED_INVALID_PHP',
+			'PLG_SYSTEM_VIEWBUILDER_JS_CHECKING_DEPS',
+			'PLG_SYSTEM_VIEWBUILDER_JS_REORDER_WARNING',
+			'PLG_SYSTEM_VIEWBUILDER_JS_DEP_USES',
+			'PLG_SYSTEM_VIEWBUILDER_JS_DEP_DEFINES',
+			'PLG_SYSTEM_VIEWBUILDER_JS_SAVE_ANYWAY',
+			'PLG_SYSTEM_VIEWBUILDER_JS_SAVE_CANCELLED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_ERROR_PARSING',
+			'PLG_SYSTEM_VIEWBUILDER_JS_BLOCK_TITLE',
+			'PLG_SYSTEM_VIEWBUILDER_JS_BLOCK_IN_FILE',
+			'PLG_SYSTEM_VIEWBUILDER_JS_SAVE_BLOCK',
+			'PLG_SYSTEM_VIEWBUILDER_JS_EDITING_BLOCK',
+			'PLG_SYSTEM_VIEWBUILDER_JS_SAVING_BLOCK',
+			'PLG_SYSTEM_VIEWBUILDER_JS_BLOCK_SAVED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_ERROR_LOADING_BLOCK',
+			'PLG_SYSTEM_VIEWBUILDER_JS_BLOCK_MOVED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_BLOCK_MOVED_SHORT',
+			'PLG_SYSTEM_VIEWBUILDER_JS_MOVE_WARNING',
+			'PLG_SYSTEM_VIEWBUILDER_JS_DEP_USES_VARS',
+			'PLG_SYSTEM_VIEWBUILDER_JS_DEP_DEFINES_VARS',
+			'PLG_SYSTEM_VIEWBUILDER_JS_PROCEED_ANYWAY',
+			'PLG_SYSTEM_VIEWBUILDER_JS_MOVE_FAILED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_MOVE_REVERTED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_MOVE_ERROR',
+		];
+		foreach ($jsKeys as $key) {
+			Text::script($key);
+		}
 	}
 
 	public function onAjaxViewbuilder(AjaxEvent $event): void
@@ -68,11 +128,11 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 		$user = $app->getIdentity();
 
 		if (!$user || $user->guest) {
-			throw new \RuntimeException('Access denied', 403);
+			throw new \RuntimeException(Text::_('PLG_SYSTEM_VIEWBUILDER_ACCESS_DENIED'), 403);
 		}
 
 		if (!$this->isUserAllowed($user)) {
-			throw new \RuntimeException('Access denied', 403);
+			throw new \RuntimeException(Text::_('PLG_SYSTEM_VIEWBUILDER_ACCESS_DENIED'), 403);
 		}
 
 		Session::checkToken('get') || Session::checkToken() || die('Invalid token');
@@ -106,7 +166,7 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 				$result = $this->handleCheckReorder($input);
 				break;
 			default:
-				throw new \RuntimeException('Unknown task', 400);
+				throw new \RuntimeException(Text::_('PLG_SYSTEM_VIEWBUILDER_UNKNOWN_TASK'), 400);
 		}
 
 		$event->addResult($result);
@@ -154,7 +214,7 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 
 		$overridePath = $this->getOverridePath($filePath);
 		if (!$overridePath) {
-			throw new \RuntimeException('Cannot determine override path', 500);
+			throw new \RuntimeException(Text::_('PLG_SYSTEM_VIEWBUILDER_CANNOT_DETERMINE_OVERRIDE_PATH'), 500);
 		}
 
 		$dir = \dirname($overridePath);
@@ -190,9 +250,9 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 			$message = str_replace($tmpFile, 'file', $message);
 			// Extract just the error line
 			if (preg_match('/Parse error:.*in file on line (\d+)/', $message, $m)) {
-				return 'PHP syntax error on line ' . $m[1] . ': ' . $message;
+				return Text::sprintf('PLG_SYSTEM_VIEWBUILDER_SYNTAX_ERROR_ON_LINE', $m[1], $message);
 			}
-			return 'PHP syntax error: ' . $message;
+			return Text::sprintf('PLG_SYSTEM_VIEWBUILDER_SYNTAX_ERROR', $message);
 		}
 
 		return null;
@@ -255,7 +315,7 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 		if ($blockContent === null) {
 			return json_encode([
 				'success' => false,
-				'message' => 'Block "' . $blockName . '" not found in file.',
+				'message' => Text::sprintf('PLG_SYSTEM_VIEWBUILDER_BLOCK_NOT_FOUND_IN_FILE', $blockName),
 			]);
 		}
 
@@ -275,20 +335,26 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 		$this->validateFilePath($filePath);
 
 		$overridePath = $this->getOverridePath($filePath);
-		if (!$overridePath || !file_exists($overridePath)) {
-			return json_encode([
-				'success' => false,
-				'message' => 'Override file not found.',
-			]);
+		$actualFile = ($overridePath && file_exists($overridePath)) ? $overridePath : $filePath;
+		$savePath = $overridePath ?: $filePath;
+
+		$fileContent = file_get_contents($actualFile);
+
+		// Try @block/@endblock style first
+		$pattern = '/(<!--\s*@block:' . preg_quote($blockName, '/') . '\s*-->)(.*?)(<!--\s*@endblock:' . preg_quote($blockName, '/') . '\s*-->)/s';
+		$matched = preg_match($pattern, $fileContent);
+
+		if (!$matched) {
+			// Try HikaShop style: <!-- NAME --> ... <!-- EO NAME -->
+			$hikaName = str_replace('_', ' ', $blockName);
+			$pattern = '/(<!--\s+' . preg_quote($hikaName, '/') . '\s+-->)(.*?)(<!--\s+EO\s+' . preg_quote($hikaName, '/') . '\s+-->)/s';
+			$matched = preg_match($pattern, $fileContent);
 		}
 
-		$fileContent = file_get_contents($overridePath);
-		$pattern = '/(<!--\s*@block:' . preg_quote($blockName, '/') . '\s*-->)(.*?)(<!--\s*@endblock:' . preg_quote($blockName, '/') . '\s*-->)/s';
-
-		if (!preg_match($pattern, $fileContent)) {
+		if (!$matched) {
 			return json_encode([
 				'success' => false,
-				'message' => 'Block "' . $blockName . '" not found in override file.',
+				'message' => Text::sprintf('PLG_SYSTEM_VIEWBUILDER_BLOCK_NOT_FOUND_IN_OVERRIDE', $blockName),
 			]);
 		}
 
@@ -303,11 +369,15 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 			]);
 		}
 
-		file_put_contents($overridePath, $updatedContent);
+		$dir = \dirname($savePath);
+		if (!is_dir($dir)) {
+			mkdir($dir, 0755, true);
+		}
+		file_put_contents($savePath, $updatedContent);
 
 		return json_encode([
 			'success'  => true,
-			'saved_to' => $overridePath,
+			'saved_to' => $savePath,
 		]);
 	}
 
@@ -328,7 +398,7 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 		} else {
 			return json_encode([
 				'success' => false,
-				'message' => 'File not found.',
+				'message' => Text::_('PLG_SYSTEM_VIEWBUILDER_FILE_NOT_FOUND'),
 			]);
 		}
 
@@ -365,7 +435,7 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 		if (!preg_match($blockPattern, $content, $m)) {
 			return json_encode([
 				'success' => false,
-				'message' => 'Block "' . $blockName . '" not found.',
+				'message' => Text::sprintf('PLG_SYSTEM_VIEWBUILDER_BLOCK_NOT_FOUND', $blockName),
 			]);
 		}
 
@@ -400,7 +470,7 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 			} else {
 				return json_encode([
 					'success' => false,
-					'message' => 'Target block "' . $afterBlock . '" not found.',
+					'message' => Text::sprintf('PLG_SYSTEM_VIEWBUILDER_TARGET_BLOCK_NOT_FOUND', $afterBlock),
 				]);
 			}
 		}
@@ -442,7 +512,7 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 		if (empty($originalOrder) || empty($newOrder)) {
 			return json_encode([
 				'success' => false,
-				'message' => 'Missing order data.',
+				'message' => Text::_('PLG_SYSTEM_VIEWBUILDER_MISSING_ORDER_DATA'),
 			]);
 		}
 
@@ -455,7 +525,7 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 		} else {
 			return json_encode([
 				'success' => false,
-				'message' => 'File not found.',
+				'message' => Text::_('PLG_SYSTEM_VIEWBUILDER_FILE_NOT_FOUND'),
 			]);
 		}
 
@@ -477,8 +547,16 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 	 */
 	private function extractBlockContent(string $fileContent, string $blockName): ?string
 	{
+		// Try @block/@endblock style first
 		$pattern = '/<!--\s*@block:' . preg_quote($blockName, '/') . '\s*-->\n?(.*?)\n?<!--\s*@endblock:' . preg_quote($blockName, '/') . '\s*-->/s';
+		if (preg_match($pattern, $fileContent, $m)) {
+			return $m[1];
+		}
 
+		// Try HikaShop style: <!-- NAME --> ... <!-- EO NAME -->
+		// Block names come from JS with underscores, HikaShop uses spaces
+		$hikaName = str_replace('_', ' ', $blockName);
+		$pattern = '/<!--\s+' . preg_quote($hikaName, '/') . '\s+-->\n?(.*?)\n?<!--\s+EO\s+' . preg_quote($hikaName, '/') . '\s+-->/s';
 		if (preg_match($pattern, $fileContent, $m)) {
 			return $m[1];
 		}
@@ -784,11 +862,11 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 		$realRoot = realpath(JPATH_ROOT);
 
 		if ($realPath === false || strpos($realPath, $realRoot) !== 0) {
-			throw new \RuntimeException('Invalid file path', 400);
+			throw new \RuntimeException(Text::_('PLG_SYSTEM_VIEWBUILDER_INVALID_FILE_PATH'), 400);
 		}
 
 		if (pathinfo($realPath, PATHINFO_EXTENSION) !== 'php') {
-			throw new \RuntimeException('Only PHP files can be edited', 400);
+			throw new \RuntimeException(Text::_('PLG_SYSTEM_VIEWBUILDER_ONLY_PHP_FILES'), 400);
 		}
 
 		// Must be in a tmpl directory or a template html override directory
@@ -797,7 +875,7 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 		$isOverride = (strpos($normalized, '/html/') !== false);
 
 		if (!$isTmpl && !$isOverride) {
-			throw new \RuntimeException('File must be in a tmpl or html override directory', 400);
+			throw new \RuntimeException(Text::_('PLG_SYSTEM_VIEWBUILDER_FILE_MUST_BE_IN_TMPL'), 400);
 		}
 	}
 

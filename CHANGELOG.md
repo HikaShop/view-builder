@@ -5,6 +5,14 @@ All notable changes to the "View Builder" Joomla plugin will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-01-29
+
+### Fixed
+- **Localization**: Added full language support for JavaScript error messages and UI labels. Backend exceptions and error messages are now fully translatable.
+- **Language Loading**: Ensured plugin language files are loaded explicitly during initialization.
+- **Drag & Drop**: Fixed issues with the drag & drop mechanism in "On Page" mode ensuring smoother block reordering.
+- **Styling**: Extensive CSS updates to improve the visual builder interface and highlight overlays.
+
 ## [1.1.0] - 2026-01-28
 
 ### Added

@@ -3,6 +3,7 @@
 namespace Joomla\Plugin\System\ViewBuilder\Service;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
 use Joomla\Registry\Registry;
@@ -108,10 +109,10 @@ class ViewBuilderHelper
 		return '<div id="' . $id . '" class="vb-wrapper' . $overrideClass . '" data-vb-file="' . $escapedPath . '">'
 			. '<div class="vb-label">'
 			. '<span class="vb-label-text">' . $escapedLabel . '</span>'
-			. ($isOverride ? '<span class="vb-override-badge">Override</span>' : '')
+			. ($isOverride ? '<span class="vb-override-badge">' . Text::_('PLG_SYSTEM_VIEWBUILDER_OVERRIDE') . '</span>' : '')
 			. '<span class="vb-label-actions">'
-			. '<button type="button" class="vb-btn vb-btn-edit" data-vb-file="' . $escapedPath . '" data-vb-ajax="' . htmlspecialchars($ajaxUrl, ENT_QUOTES, 'UTF-8') . '" title="Edit view file">Edit</button>'
-			. '<button type="button" class="vb-btn vb-btn-builder" data-vb-file="' . $escapedPath . '" data-vb-ajax="' . htmlspecialchars($ajaxUrl, ENT_QUOTES, 'UTF-8') . '" title="Open builder">Builder</button>'
+			. '<button type="button" class="vb-btn vb-btn-edit" data-vb-file="' . $escapedPath . '" data-vb-ajax="' . htmlspecialchars($ajaxUrl, ENT_QUOTES, 'UTF-8') . '" title="' . Text::_('PLG_SYSTEM_VIEWBUILDER_EDIT_VIEW_FILE') . '">' . Text::_('PLG_SYSTEM_VIEWBUILDER_EDIT') . '</button>'
+			. '<button type="button" class="vb-btn vb-btn-builder" data-vb-file="' . $escapedPath . '" data-vb-ajax="' . htmlspecialchars($ajaxUrl, ENT_QUOTES, 'UTF-8') . '" title="' . Text::_('PLG_SYSTEM_VIEWBUILDER_OPEN_BUILDER') . '">' . Text::_('PLG_SYSTEM_VIEWBUILDER_BUILDER') . '</button>'
 			. '</span>'
 			. '</div>'
 			. '<div class="vb-content">' . $output . '</div>'
@@ -177,11 +178,14 @@ class ViewBuilderHelper
 			return $output;
 		}
 
-		$wrapBlock = function ($name, $content) use ($escapedPath, $escapedAjax, $depth) {
+		$dragTitle = Text::_('PLG_SYSTEM_VIEWBUILDER_DRAG_TO_REORDER');
+		$editTitle = Text::_('PLG_SYSTEM_VIEWBUILDER_EDIT_BLOCK');
+		$wrapBlock = function ($name, $content) use ($escapedPath, $escapedAjax, $depth, $dragTitle, $editTitle) {
 			$escapedName = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
-			return '<div class="vb-onpage-block vb-onpage-depth-' . $depth . '" data-vb-block="' . $escapedName . '" data-vb-file="' . $escapedPath . '" data-vb-ajax="' . $escapedAjax . '" data-vb-depth="' . $depth . '">'
-				. '<div class="vb-onpage-handle vb-onpage-handle-' . $depth . '" title="Drag to reorder">&#x2807;</div>'
-				. '<button type="button" class="vb-onpage-edit" data-vb-block="' . $escapedName . '" data-vb-file="' . $escapedPath . '" data-vb-ajax="' . $escapedAjax . '" title="Edit block">&#9998;</button>'
+			$label = htmlspecialchars(str_replace('_', ' ', $name), ENT_QUOTES, 'UTF-8');
+			return '<div class="vb-onpage-block vb-onpage-depth-' . $depth . '" data-vb-block="' . $escapedName . '" data-vb-label="' . $label . '" data-vb-file="' . $escapedPath . '" data-vb-ajax="' . $escapedAjax . '" data-vb-depth="' . $depth . '">'
+				. '<div class="vb-onpage-handle vb-onpage-handle-' . $depth . '" title="' . $dragTitle . '">&#x2807;</div>'
+				. '<button type="button" class="vb-onpage-edit" data-vb-block="' . $escapedName . '" data-vb-file="' . $escapedPath . '" data-vb-ajax="' . $escapedAjax . '" title="' . $editTitle . '">&#9998;</button>'
 				. $content
 				. '</div>';
 		};

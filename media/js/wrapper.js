@@ -9,6 +9,19 @@
 	var sortableInstance = null;
 
 	/**
+	 * Get a translated string, with optional sprintf-style %s substitution.
+	 */
+	function t(key) {
+		var str = Joomla.Text._(key) || key;
+		var args = Array.prototype.slice.call(arguments, 1);
+		if (args.length > 0) {
+			var i = 0;
+			str = str.replace(/%s/g, function() { return args[i++] || ''; });
+		}
+		return str;
+	}
+
+	/**
 	 * Unwrap com_ajax response.
 	 * com_ajax returns {success:true, data:["json string"]} where data is an array
 	 * with plugin results. Our plugin returns a JSON string, so data[0] is that string.
@@ -57,13 +70,13 @@
 			.then(function(resp) {
 				var data = unwrapResponse(resp);
 				if (!data.success) {
-					alert('Error loading file: ' + (data.message || 'Unknown error'));
+					alert(t('PLG_SYSTEM_VIEWBUILDER_JS_ERROR_LOADING_FILE', data.message || 'Unknown error'));
 					return;
 				}
 				showEditorModal(data, filePath, ajaxUrl);
 			})
 			.catch(function(err) {
-				alert('Error: ' + err.message);
+				alert(t('PLG_SYSTEM_VIEWBUILDER_JS_ERROR', err.message));
 			});
 	}
 
@@ -84,13 +97,13 @@
 		var header = document.createElement('div');
 		header.className = 'vb-modal-header';
 		header.innerHTML = '<div class="vb-modal-title">' + escapeHtml(shortName) +
-			(data.is_override ? ' <span style="color:#5cb85c;font-size:11px;">[Override]</span>' : ' <span style="color:#999;font-size:11px;">[Original]</span>') +
+			(data.is_override ? ' <span style="color:#5cb85c;font-size:11px;">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_OVERRIDE_LABEL')) + '</span>' : ' <span style="color:#999;font-size:11px;">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_ORIGINAL_LABEL')) + '</span>') +
 			'</div>' +
 			'<div class="vb-modal-actions">' +
-			(data.is_override ? '<button type="button" class="vb-revert-btn">Revert to Original</button>' : '') +
-			'<button type="button" class="vb-builder-switch-btn">Builder</button>' +
-			'<button type="button" class="vb-save-btn">Save as Override</button>' +
-			'<button type="button" class="vb-close-btn">Close</button>' +
+			(data.is_override ? '<button type="button" class="vb-revert-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_REVERT_TO_ORIGINAL')) + '</button>' : '') +
+			'<button type="button" class="vb-builder-switch-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_BUILDER')) + '</button>' +
+			'<button type="button" class="vb-save-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_SAVE_AS_OVERRIDE')) + '</button>' +
+			'<button type="button" class="vb-close-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_CLOSE')) + '</button>' +
 			'</div>';
 
 		var body = document.createElement('div');
@@ -116,7 +129,7 @@
 
 		var status = document.createElement('div');
 		status.className = 'vb-modal-status';
-		status.textContent = 'File loaded. Use Ctrl+S to save.';
+		status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_FILE_LOADED');
 
 		modal.appendChild(header);
 		modal.appendChild(body);
@@ -134,7 +147,7 @@
 		var builderSwitchBtn = header.querySelector('.vb-builder-switch-btn');
 
 		function saveFile() {
-			status.textContent = 'Saving...';
+			status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_SAVING');
 			var formData = new FormData();
 			formData.append('file', filePath);
 			formData.append('content', textarea.value);
@@ -147,18 +160,18 @@
 			.then(function(resp) {
 				var d = unwrapResponse(resp);
 				if (d.success) {
-					status.textContent = 'Saved successfully to: ' + (d.saved_to || 'override');
+					status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_SAVED_TO', d.saved_to || 'override');
 					status.style.color = '';
 				} else if (d.syntax_error) {
-					status.textContent = 'NOT SAVED \u2013 ' + d.message;
+					status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_NOT_SAVED', d.message);
 					status.style.color = '#d9534f';
 				} else {
-					status.textContent = 'Save failed: ' + (d.message || 'Unknown error');
+					status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_SAVE_FAILED', d.message || 'Unknown error');
 					status.style.color = '#d9534f';
 				}
 			})
 			.catch(function(err) {
-				status.textContent = 'Save error: ' + err.message;
+				status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_SAVE_ERROR', err.message);
 				status.style.color = '#d9534f';
 			});
 		}
@@ -168,14 +181,14 @@
 
 		if (revertBtn) {
 			revertBtn.addEventListener('click', function() {
-				if (!confirm('Are you sure you want to delete the override and revert to the original file?')) return;
-				status.textContent = 'Reverting...';
+				if (!confirm(t('PLG_SYSTEM_VIEWBUILDER_JS_CONFIRM_REVERT'))) return;
+				status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_REVERTING');
 				fetch(ajaxUrl + '&task=revert&file=' + encodeURIComponent(filePath))
 					.then(function(r) { return r.json(); })
 					.then(function(resp) {
 						var d = unwrapResponse(resp);
 						if (d.success) {
-							status.textContent = 'Reverted to original. Reloading...';
+							status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_REVERTED');
 							setTimeout(function() { location.reload(); }, 1000);
 						}
 					});
@@ -199,7 +212,7 @@
 			.then(function(resp) {
 				var data = unwrapResponse(resp);
 				if (!data.success) {
-					alert('Error parsing file: ' + (data.message || 'Unknown error'));
+					alert(t('PLG_SYSTEM_VIEWBUILDER_JS_ERROR_PARSING', data.message || 'Unknown error'));
 					return;
 				}
 				// Also load the file content for saving after reorder
@@ -211,7 +224,7 @@
 					});
 			})
 			.catch(function(err) {
-				alert('Error: ' + err.message);
+				alert(t('PLG_SYSTEM_VIEWBUILDER_JS_ERROR', err.message));
 			});
 	}
 
@@ -232,11 +245,11 @@
 
 		var header = document.createElement('div');
 		header.className = 'vb-modal-header';
-		header.innerHTML = '<div class="vb-modal-title">Builder: ' + escapeHtml(shortName) + '</div>' +
+		header.innerHTML = '<div class="vb-modal-title">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_BUILDER_TITLE', shortName)) + '</div>' +
 			'<div class="vb-modal-actions">' +
-			'<button type="button" class="vb-save-btn">Save Order</button>' +
-			'<button type="button" class="vb-builder-switch-btn">Code Editor</button>' +
-			'<button type="button" class="vb-close-btn">Close</button>' +
+			'<button type="button" class="vb-save-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_SAVE_ORDER')) + '</button>' +
+			'<button type="button" class="vb-builder-switch-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_CODE_EDITOR')) + '</button>' +
+			'<button type="button" class="vb-close-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_CLOSE')) + '</button>' +
 			'</div>';
 
 		var body = document.createElement('div');
@@ -250,7 +263,7 @@
 		blockList.id = 'vb-builder-sortable';
 
 		if (blocks.length === 0) {
-			blockList.innerHTML = '<div style="padding:20px;color:#999;text-align:center;">No blocks detected in this file. Use the code editor instead, or add &lt;!-- BLOCK_NAME --&gt; / &lt;!-- EO BLOCK_NAME --&gt; delimiters to enable the builder.</div>';
+			blockList.innerHTML = '<div style="padding:20px;color:#999;text-align:center;">' + t('PLG_SYSTEM_VIEWBUILDER_JS_NO_BLOCKS') + '</div>';
 		} else {
 			blocks.forEach(function(block, idx) {
 				var item = document.createElement('div');
@@ -273,7 +286,7 @@
 
 		var status = document.createElement('div');
 		status.className = 'vb-modal-status';
-		status.textContent = blocks.length + ' block(s) detected. Drag to reorder movable blocks.';
+		status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_BLOCKS_DETECTED', blocks.length);
 
 		modal.appendChild(header);
 		modal.appendChild(body);
@@ -291,7 +304,7 @@
 				ghostClass: 'sortable-ghost',
 				dragClass: 'sortable-drag',
 				onEnd: function() {
-					status.textContent = 'Order changed. Click "Save Order" to apply.';
+					status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_ORDER_CHANGED');
 				}
 			});
 		} else if (blocks.length > 0) {
@@ -306,7 +319,7 @@
 					ghostClass: 'sortable-ghost',
 					dragClass: 'sortable-drag',
 					onEnd: function() {
-						status.textContent = 'Order changed. Click "Save Order" to apply.';
+						status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_ORDER_CHANGED');
 					}
 				});
 			};
@@ -339,13 +352,13 @@
 			});
 
 			if (!orderChanged) {
-				status.textContent = 'No changes to save.';
+				status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_NO_CHANGES');
 				return;
 			}
 
 			// Helper function to perform the actual save
 			function doSaveReorder() {
-				status.textContent = 'Saving new order...';
+				status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_SAVING_ORDER');
 
 				var lines = fileData.content.split('\n');
 				var blockContents = [];
@@ -399,24 +412,24 @@
 				.then(function(resp) {
 					var d = unwrapResponse(resp);
 					if (d.success) {
-						status.textContent = 'Order saved to override. Reload the page to see changes.';
+						status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_ORDER_SAVED');
 						status.style.color = '';
 					} else if (d.syntax_error) {
-						status.textContent = 'NOT SAVED \u2013 The new order produces invalid PHP: ' + d.message;
+						status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_NOT_SAVED_INVALID_PHP', d.message);
 						status.style.color = '#d9534f';
 					} else {
-						status.textContent = 'Save failed: ' + (d.message || 'Unknown error');
+						status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_SAVE_FAILED', d.message || 'Unknown error');
 						status.style.color = '#d9534f';
 					}
 				})
 				.catch(function(err) {
-					status.textContent = 'Save error: ' + err.message;
+					status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_SAVE_ERROR', err.message);
 					status.style.color = '#d9534f';
 				});
 			}
 
 			// First, check for dependency issues
-			status.textContent = 'Checking dependencies...';
+			status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_CHECKING_DEPS');
 			var checkData = new FormData();
 			checkData.append('file', filePath);
 			originalOrder.forEach(function(name) { checkData.append('original_order[]', name); });
@@ -430,17 +443,17 @@
 			.then(function(resp) {
 				var d = unwrapResponse(resp);
 				if (d.dependency_warning) {
-					var msg = 'Reordering may cause issues:\n\n';
+					var msg = t('PLG_SYSTEM_VIEWBUILDER_JS_REORDER_WARNING') + '\n\n';
 					d.warnings.forEach(function(w) {
-						msg += '\u2022 Block "' + w.block + '" ' +
+						var vars = w.variables.map(function(v) { return '$' + v; }).join(', ');
+						msg += '\u2022 "' + w.block + '" ' +
 							(w.direction === 'loses_definitions'
-								? 'uses: '
-								: 'defines: ') +
-							w.variables.map(function(v) { return '$' + v; }).join(', ') + '\n';
+								? t('PLG_SYSTEM_VIEWBUILDER_JS_DEP_USES', vars)
+								: t('PLG_SYSTEM_VIEWBUILDER_JS_DEP_DEFINES', vars)) + '\n';
 					});
-					msg += '\nSave anyway?';
+					msg += '\n' + t('PLG_SYSTEM_VIEWBUILDER_JS_SAVE_ANYWAY');
 					if (!confirm(msg)) {
-						status.textContent = 'Save cancelled.';
+						status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_SAVE_CANCELLED');
 						return;
 					}
 				}
@@ -512,13 +525,13 @@
 			.then(function(resp) {
 				var data = unwrapResponse(resp);
 				if (!data.success) {
-					alert('Error loading block: ' + (data.message || 'Unknown error'));
+					alert(t('PLG_SYSTEM_VIEWBUILDER_JS_ERROR_LOADING_BLOCK', data.message || 'Unknown error'));
 					return;
 				}
 				showBlockEditorModal(data, blockName, filePath, ajaxUrl);
 			})
 			.catch(function(err) {
-				alert('Error: ' + err.message);
+				alert(t('PLG_SYSTEM_VIEWBUILDER_JS_ERROR', err.message));
 			});
 	}
 
@@ -538,10 +551,10 @@
 
 		var header = document.createElement('div');
 		header.className = 'vb-modal-header';
-		header.innerHTML = '<div class="vb-modal-title">Block: ' + escapeHtml(blockName) + ' <span style="color:#999;font-size:11px;">in ' + escapeHtml(shortName) + '</span></div>' +
+		header.innerHTML = '<div class="vb-modal-title">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_BLOCK_TITLE', blockName)) + ' <span style="color:#999;font-size:11px;">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_BLOCK_IN_FILE', shortName)) + '</span></div>' +
 			'<div class="vb-modal-actions">' +
-			'<button type="button" class="vb-save-btn">Save Block</button>' +
-			'<button type="button" class="vb-close-btn">Close</button>' +
+			'<button type="button" class="vb-save-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_SAVE_BLOCK')) + '</button>' +
+			'<button type="button" class="vb-close-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_CLOSE')) + '</button>' +
 			'</div>';
 
 		var body = document.createElement('div');
@@ -567,7 +580,7 @@
 
 		var status = document.createElement('div');
 		status.className = 'vb-modal-status';
-		status.textContent = 'Editing block "' + blockName + '". Use Ctrl+S to save.';
+		status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_EDITING_BLOCK', blockName);
 
 		modal.appendChild(header);
 		modal.appendChild(body);
@@ -582,7 +595,7 @@
 		var closeBtn = header.querySelector('.vb-close-btn');
 
 		function saveBlock() {
-			status.textContent = 'Saving block...';
+			status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_SAVING_BLOCK');
 			var formData = new FormData();
 			formData.append('file', filePath);
 			formData.append('block', blockName);
@@ -596,18 +609,18 @@
 			.then(function(resp) {
 				var d = unwrapResponse(resp);
 				if (d.success) {
-					status.textContent = 'Block saved. Reload the page to see changes.';
+					status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_BLOCK_SAVED');
 					status.style.color = '';
 				} else if (d.syntax_error) {
-					status.textContent = 'NOT SAVED \u2013 ' + d.message;
+					status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_NOT_SAVED', d.message);
 					status.style.color = '#d9534f';
 				} else {
-					status.textContent = 'Save failed: ' + (d.message || 'Unknown error');
+					status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_SAVE_FAILED', d.message || 'Unknown error');
 					status.style.color = '#d9534f';
 				}
 			})
 			.catch(function(err) {
-				status.textContent = 'Save error: ' + err.message;
+				status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_SAVE_ERROR', err.message);
 				status.style.color = '#d9534f';
 			});
 		}
@@ -619,18 +632,15 @@
 
 	/**
 	 * Initialize on-page SortableJS for drag-and-drop block reordering.
-	 * Groups blocks by file + depth + parent DOM node, so that only actual
-	 * sibling blocks share a Sortable instance. This is critical for nested
-	 * views: child blocks (depth 1+) may live in different parent containers
-	 * than top-level blocks, and SortableJS requires draggable items to be
-	 * direct children of the container.
+	 * Groups blocks by file + depth, then sub-groups by parent DOM node.
+	 * All containers for the same file+depth share a SortableJS group so
+	 * blocks can be dragged between areas (e.g. top/left/right/bottom).
 	 */
 	function initOnPageSortable() {
 		var blocks = document.querySelectorAll('.vb-onpage-block');
 		if (blocks.length === 0) return;
 
-		// Group blocks by file + depth + actual parentNode.
-		// We use a Map keyed by parentNode so we can sub-group properly.
+		// Collect all blocks for the same file+depth in document order
 		var fileDepthGroups = {};
 		blocks.forEach(function(block) {
 			var key = block.dataset.vbFile + '::' + block.dataset.vbDepth;
@@ -645,6 +655,7 @@
 			var groupBlocks = fileDepthGroups[key];
 			var file = groupBlocks[0].dataset.vbFile;
 			var depth = groupBlocks[0].dataset.vbDepth;
+			var ajaxUrl = groupBlocks[0].dataset.vbAjax;
 
 			// Sub-group by actual parent DOM node
 			var parentMap = new Map();
@@ -656,99 +667,133 @@
 				parentMap.get(parent).push(block);
 			});
 
-			// Init Sortable on each parent that has at least 2 sibling blocks
+			// Need at least 2 blocks total across all containers to enable dragging
+			if (groupBlocks.length < 2) return;
+
+			// Shared group name so SortableJS allows cross-container dragging
+			var groupName = 'vb-' + key.replace(/[^a-zA-Z0-9]/g, '_');
+
+			// Build an onEnd handler shared by all containers in this group.
+			// When a block is dropped, we determine its "after" block by looking
+			// at the previous sibling in the target container. If there is no
+			// previous sibling block in the target container, we need to find
+			// the last block in the preceding container (in document order)
+			// that belongs to the same file+depth.
+			var onEndHandler = function(evt) {
+				var movedBlock = evt.item;
+				var blockName = movedBlock.dataset.vbBlock;
+
+				// Find the "after" block: the block just before in the same container
+				var prevSibling = movedBlock.previousElementSibling;
+				var afterBlock = '';
+				while (prevSibling) {
+					if (prevSibling.classList.contains('vb-onpage-block') &&
+						prevSibling.dataset.vbFile === file &&
+						prevSibling.dataset.vbDepth === depth) {
+						afterBlock = prevSibling.dataset.vbBlock;
+						break;
+					}
+					prevSibling = prevSibling.previousElementSibling;
+				}
+
+				// If no previous sibling in this container, check if there is a
+				// preceding container. The block should go after the last block
+				// of the previous container (in document order).
+				if (!afterBlock) {
+					var targetParent = movedBlock.parentNode;
+					var parents = Array.from(parentMap.keys());
+					var targetIdx = parents.indexOf(targetParent);
+					for (var pi = targetIdx - 1; pi >= 0; pi--) {
+						var prevParent = parents[pi];
+						// Find the last matching block in this parent
+						var children = prevParent.querySelectorAll(
+							'.vb-onpage-block[data-vb-file="' + file.replace(/"/g, '\\"') + '"][data-vb-depth="' + depth + '"]'
+						);
+						if (children.length > 0) {
+							afterBlock = children[children.length - 1].dataset.vbBlock;
+							break;
+						}
+					}
+				}
+
+				// Send AJAX move request
+				var formData = new FormData();
+				formData.append('file', file);
+				formData.append('block', blockName);
+				formData.append('after', afterBlock);
+
+				fetch(ajaxUrl + '&task=move_block', {
+					method: 'POST',
+					body: formData
+				})
+				.then(function(r) { return r.json(); })
+				.then(function(resp) {
+					var d = unwrapResponse(resp);
+					if (d.success) {
+						showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_BLOCK_MOVED'), 'success');
+					} else if (d.dependency_warning) {
+						var msg = t('PLG_SYSTEM_VIEWBUILDER_JS_MOVE_WARNING') + '\n\n';
+						d.warnings.forEach(function(w) {
+							var vars = w.variables.map(function(v) { return '$' + v; }).join(', ');
+							msg += '\u2022 "' + w.block + '" ' +
+								(w.direction === 'loses_definitions'
+									? t('PLG_SYSTEM_VIEWBUILDER_JS_DEP_USES_VARS', vars)
+									: t('PLG_SYSTEM_VIEWBUILDER_JS_DEP_DEFINES_VARS', vars)) + '\n';
+						});
+						msg += '\n' + t('PLG_SYSTEM_VIEWBUILDER_JS_PROCEED_ANYWAY');
+
+						if (confirm(msg)) {
+							var forceData = new FormData();
+							forceData.append('file', file);
+							forceData.append('block', blockName);
+							forceData.append('after', afterBlock);
+							forceData.append('force', '1');
+							fetch(ajaxUrl + '&task=move_block', {
+								method: 'POST',
+								body: forceData
+							})
+							.then(function(r) { return r.json(); })
+							.then(function(resp2) {
+								var d2 = unwrapResponse(resp2);
+								if (d2.success) {
+									showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_BLOCK_MOVED_SHORT'), 'success');
+								} else {
+									showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_MOVE_FAILED', d2.message || 'Error'), 'error');
+									location.reload();
+								}
+							});
+						} else {
+							location.reload();
+						}
+					} else if (d.syntax_error) {
+						showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_MOVE_REVERTED', d.message), 'error');
+						location.reload();
+					} else {
+						showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_MOVE_FAILED', d.message || 'Unknown error'), 'error');
+						location.reload();
+					}
+				})
+				.catch(function(err) {
+					showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_MOVE_ERROR', err.message), 'error');
+					location.reload();
+				});
+			};
+
+			// Init Sortable on each parent container, all sharing the same group
 			parentMap.forEach(function(siblingBlocks, parent) {
-				if (siblingBlocks.length < 2) return;
-
-				var ajaxUrl = siblingBlocks[0].dataset.vbAjax;
-
 				var instance = Sortable.create(parent, {
+					group: groupName,
 					animation: 150,
 					handle: '.vb-onpage-handle-' + depth,
 					draggable: '.vb-onpage-block[data-vb-file="' + file.replace(/"/g, '\\"') + '"][data-vb-depth="' + depth + '"]',
 					ghostClass: 'vb-onpage-ghost',
 					dragClass: 'vb-onpage-drag',
+					onStart: function() {
+						document.body.classList.add('vb-dragging', 'vb-dragging-depth-' + depth);
+					},
 					onEnd: function(evt) {
-						var movedBlock = evt.item;
-						var blockName = movedBlock.dataset.vbBlock;
-
-						// Determine the block that is now before the moved block (same file + depth)
-						var prevSibling = movedBlock.previousElementSibling;
-						var afterBlock = '';
-						while (prevSibling) {
-							if (prevSibling.classList.contains('vb-onpage-block') &&
-								prevSibling.dataset.vbFile === file &&
-								prevSibling.dataset.vbDepth === depth) {
-								afterBlock = prevSibling.dataset.vbBlock;
-								break;
-							}
-							prevSibling = prevSibling.previousElementSibling;
-						}
-
-						// Send AJAX move request
-						var formData = new FormData();
-						formData.append('file', file);
-						formData.append('block', blockName);
-						formData.append('after', afterBlock);
-
-						fetch(ajaxUrl + '&task=move_block', {
-							method: 'POST',
-							body: formData
-						})
-						.then(function(r) { return r.json(); })
-						.then(function(resp) {
-							var d = unwrapResponse(resp);
-							if (d.success) {
-								showOnPageNotification('Block moved successfully.', 'success');
-							} else if (d.dependency_warning) {
-								// Build human-readable warning message
-								var msg = 'Moving this block may cause issues:\n\n';
-								d.warnings.forEach(function(w) {
-									msg += '\u2022 Block "' + w.block + '" ' +
-										(w.direction === 'loses_definitions'
-											? 'uses variables defined here: '
-											: 'defines variables used here: ') +
-										w.variables.map(function(v) { return '$' + v; }).join(', ') + '\n';
-								});
-								msg += '\nProceed anyway?';
-
-								if (confirm(msg)) {
-									// Re-send with force=1
-									var forceData = new FormData();
-									forceData.append('file', file);
-									forceData.append('block', blockName);
-									forceData.append('after', afterBlock);
-									forceData.append('force', '1');
-									fetch(ajaxUrl + '&task=move_block', {
-										method: 'POST',
-										body: forceData
-									})
-									.then(function(r) { return r.json(); })
-									.then(function(resp2) {
-										var d2 = unwrapResponse(resp2);
-										if (d2.success) {
-											showOnPageNotification('Block moved.', 'success');
-										} else {
-											showOnPageNotification('Move failed: ' + (d2.message || 'Error'), 'error');
-											location.reload();
-										}
-									});
-								} else {
-									// User cancelled - revert DOM to original state
-									location.reload();
-								}
-							} else if (d.syntax_error) {
-								showOnPageNotification('Move reverted \u2013 invalid PHP: ' + d.message, 'error');
-								location.reload();
-							} else {
-								showOnPageNotification('Move failed: ' + (d.message || 'Unknown error'), 'error');
-								location.reload();
-							}
-						})
-						.catch(function(err) {
-							showOnPageNotification('Move error: ' + err.message, 'error');
-							location.reload();
-						});
+						document.body.classList.remove('vb-dragging', 'vb-dragging-depth-' + depth);
+						onEndHandler(evt);
 					}
 				});
 

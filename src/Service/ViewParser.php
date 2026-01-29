@@ -168,7 +168,7 @@ class ViewParser
 
 		// 2. Match loadTemplate('string_literal') inside the block
 		if (preg_match('/->loadTemplate\s*\(\s*[\'"](\w+)[\'"]\s*\)/', $combined, $m)) {
-			return 'Template: ' . $m[1];
+			return \Joomla\CMS\Language\Text::sprintf('PLG_SYSTEM_VIEWBUILDER_TEMPLATE_PREFIX', $m[1]);
 		}
 
 		return null;

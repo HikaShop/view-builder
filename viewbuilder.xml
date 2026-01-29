@@ -5,7 +5,7 @@
 	<creationDate>2026-01</creationDate>
 	<copyright>(C) 2026 HikaShop. All rights reserved.</copyright>
 	<license>GNU General Public License version 2 or later</license>
-	<version>1.1.0</version>
+	<version>1.1.1</version>
 	<description>PLG_SYSTEM_VIEWBUILDER_XML_DESCRIPTION</description>
 	<namespace path="src">Joomla\Plugin\System\ViewBuilder</namespace>
 	<files>
@@ -20,6 +20,8 @@
 	<languages>
 		<language tag="en-GB">language/en-GB/plg_system_viewbuilder.ini</language>
 		<language tag="en-GB">language/en-GB/plg_system_viewbuilder.sys.ini</language>
+		<language tag="fr-FR">language/fr-FR/plg_system_viewbuilder.ini</language>
+		<language tag="fr-FR">language/fr-FR/plg_system_viewbuilder.sys.ini</language>
 	</languages>
 	<updateservers>
 		<server type="extension" priority="1" name="View Builder Update Server">https://raw.githubusercontent.com/HikaShop/view-builder/main/update.xml</server>

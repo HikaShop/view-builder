@@ -317,6 +317,7 @@
 	outline: 1px dashed #d95f4a;
 	outline-offset: -1px;
 	transition: outline-color 0.2s;
+	min-height: 28px;
 }
 .vb-onpage-block:hover {
 	outline: 2px solid #d95f4a;
@@ -364,6 +365,58 @@
 }
 .vb-onpage-edit:hover {
 	filter: brightness(0.85);
+}
+
+/* Block name label - always visible, centered in the block */
+.vb-onpage-block::after {
+	content: attr(data-vb-label);
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	z-index: 99;
+	background: rgba(217, 95, 74, 0.18);
+	color: rgba(217, 95, 74, 0.75);
+	padding: 2px 10px;
+	font-size: 13px;
+	font-weight: bold;
+	line-height: 1.4;
+	white-space: nowrap;
+	border-radius: 3px;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	pointer-events: none;
+	transition: opacity 0.2s, background 0.2s, color 0.2s;
+}
+/* Per-depth label colors matching outline colors */
+.vb-onpage-depth-0::after { background: rgba(74, 144, 217, 0.18); color: rgba(74, 144, 217, 0.75); }
+.vb-onpage-depth-1::after { background: rgba(109, 191, 103, 0.18); color: rgba(109, 191, 103, 0.75); }
+.vb-onpage-depth-2::after { background: rgba(217, 144, 74, 0.18); color: rgba(217, 144, 74, 0.75); }
+
+/* Hovering or dragging a block highlights its label */
+.vb-onpage-block:hover::after {
+	color: rgba(217, 95, 74, 1);
+}
+.vb-onpage-depth-0:hover::after { color: rgba(74, 144, 217, 1); }
+.vb-onpage-depth-1:hover::after { color: rgba(109, 191, 103, 1); }
+.vb-onpage-depth-2:hover::after { color: rgba(217, 144, 74, 1); }
+
+/* During drag: only same-depth blocks show full-opacity labels */
+.vb-dragging-depth-0 .vb-onpage-block.vb-onpage-depth-0::after { background: rgba(74, 144, 217, 0.85); color: #fff; }
+.vb-dragging-depth-1 .vb-onpage-block.vb-onpage-depth-1::after { background: rgba(109, 191, 103, 0.85); color: #fff; }
+.vb-dragging-depth-2 .vb-onpage-block.vb-onpage-depth-2::after { background: rgba(217, 144, 74, 0.85); color: #fff; }
+
+/* During drag: highlight only same-depth blocks as drop targets */
+.vb-dragging-depth-0 .vb-onpage-block.vb-onpage-depth-0 {
+	outline-style: solid !important;
+	outline-width: 2px !important;
+}
+.vb-dragging-depth-1 .vb-onpage-block.vb-onpage-depth-1 {
+	outline-style: solid !important;
+	outline-width: 2px !important;
+}
+.vb-dragging-depth-2 .vb-onpage-block.vb-onpage-depth-2 {
+	outline-style: solid !important;
+	outline-width: 2px !important;
 }
 
 /* Show handle/edit only on direct hover (not when a child block is hovered) */
