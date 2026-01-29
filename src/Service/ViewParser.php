@@ -1,4 +1,12 @@
 <?php
+/**
+ * @package     Joomla.Plugin
+ * @subpackage  System.ViewBuilder
+ *
+ * @copyright   (C) 2026 Hikari Software. All rights reserved.
+ * @license     GNU General Public License version 2 or later; see LICENSE.txt
+ */
+
 
 namespace Joomla\Plugin\System\ViewBuilder\Service;
 

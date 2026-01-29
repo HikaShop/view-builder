@@ -73,7 +73,7 @@ Go to **System > Plugins > System - View Builder**.
 5. **Drag** the handle to reorder a block relative to its siblings. The change is saved to the override file automatically via AJAX.
 6. **Click** the edit button to open a code editor popup showing only that block's code. Edit and save with Ctrl+S or the Save button.
 
-If an existing override file is found without delimiters, the plugin renames it to `filename.php_old` and creates a new override with delimiters injected around detected blocks.
+If an existing override file is found without delimiters, the plugin renames it to `filename_old.php` and creates a new override with delimiters injected around detected blocks.
 
 ### Popup Mode
 
