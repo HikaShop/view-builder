@@ -419,21 +419,46 @@
 	outline-width: 2px !important;
 }
 
-/* Show handle/edit only on direct hover (not when a child block is hovered) */
+/* Delete button - base styles */
+.vb-onpage-delete {
+	display: none;
+	position: absolute;
+	top: 0;
+	right: 28px;
+	z-index: 1000;
+	background: #d95f4a;
+	color: #fff;
+	border: none;
+	padding: 2px 8px;
+	cursor: pointer;
+	font-size: 14px;
+	line-height: 1.4;
+	border-radius: 0;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.vb-onpage-delete:hover {
+	filter: brightness(0.85);
+}
+
+/* Show handle/edit/delete only on direct hover (not when a child block is hovered) */
 .vb-onpage-block:hover > .vb-onpage-handle,
-.vb-onpage-block:hover > .vb-onpage-edit {
+.vb-onpage-block:hover > .vb-onpage-edit,
+.vb-onpage-block:hover > .vb-onpage-delete {
 	display: block;
 }
 
 /* Per-depth colors and offsets so handles from different levels don't overlap */
 .vb-onpage-depth-0 > .vb-onpage-handle { background: #4a90d9; z-index: 1000; }
 .vb-onpage-depth-0 > .vb-onpage-edit   { background: #4a90d9; z-index: 1000; }
+.vb-onpage-depth-0 > .vb-onpage-delete { background: #4a90d9; z-index: 1000; right: 28px; }
 
 .vb-onpage-depth-1 > .vb-onpage-handle { background: #6dbf67; z-index: 1001; left: 28px; }
 .vb-onpage-depth-1 > .vb-onpage-edit   { background: #6dbf67; z-index: 1001; right: 28px; }
+.vb-onpage-depth-1 > .vb-onpage-delete { background: #6dbf67; z-index: 1001; right: 56px; }
 
 .vb-onpage-depth-2 > .vb-onpage-handle { background: #d9904a; z-index: 1002; left: 56px; }
 .vb-onpage-depth-2 > .vb-onpage-edit   { background: #d9904a; z-index: 1002; right: 56px; }
+.vb-onpage-depth-2 > .vb-onpage-delete { background: #d9904a; z-index: 1002; right: 84px; }
 .vb-onpage-block.vb-onpage-ghost {
 	opacity: 0.4;
 	outline: 2px dashed #5cb85c;
@@ -466,4 +491,52 @@
 .vb-onpage-notification-hide {
 	opacity: 0;
 	transform: translateY(10px);
+}
+
+/* ========================================================================
+   Override file wrapper (always visible for customized view files)
+   ======================================================================== */
+
+.vb-onpage-override {
+	position: relative;
+}
+
+.vb-onpage-override-bar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 3px 8px;
+	background: #d95f4a;
+	color: #fff;
+	font-size: 11px;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	line-height: 1.4;
+}
+.vb-onpage-override-bar-0 { background: #4a90d9; }
+.vb-onpage-override-bar-1 { background: #6dbf67; }
+.vb-onpage-override-bar-2 { background: #d9904a; }
+
+.vb-onpage-override-label {
+	flex: 1;
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.vb-onpage-reset {
+	background: rgba(255,255,255,0.2);
+	border: 1px solid rgba(255,255,255,0.4);
+	color: #fff;
+	padding: 1px 8px;
+	border-radius: 3px;
+	cursor: pointer;
+	font-size: 11px;
+	font-family: inherit;
+	line-height: 1.4;
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+.vb-onpage-reset:hover {
+	background: rgba(255,255,255,0.35);
 }

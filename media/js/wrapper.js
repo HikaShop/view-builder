@@ -509,13 +509,67 @@
 
 	var onpageSortables = [];
 
-	// Click handler for on-page edit buttons
+	// Click handler for on-page edit and reset buttons
 	document.addEventListener('click', function(e) {
 		var editBtn = e.target.closest('.vb-onpage-edit');
 		if (editBtn) {
 			e.preventDefault();
 			e.stopPropagation();
 			openBlockEditor(editBtn.dataset.vbBlock, editBtn.dataset.vbFile, editBtn.dataset.vbAjax);
+			return;
+		}
+
+		var deleteBtn = e.target.closest('.vb-onpage-delete');
+		if (deleteBtn) {
+			e.preventDefault();
+			e.stopPropagation();
+			var blockName = deleteBtn.dataset.vbBlock;
+			var displayName = blockName.replace(/_/g, ' ');
+			if (!confirm(t('PLG_SYSTEM_VIEWBUILDER_JS_CONFIRM_DELETE_BLOCK', displayName))) return;
+			showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_DELETING_BLOCK'), 'success');
+			var formData = new FormData();
+			formData.append('file', deleteBtn.dataset.vbFile);
+			formData.append('block', blockName);
+			fetch(deleteBtn.dataset.vbAjax + '&task=delete_block', {
+				method: 'POST',
+				body: formData
+			})
+			.then(function(r) { return r.json(); })
+			.then(function(resp) {
+				var d = unwrapResponse(resp);
+				if (d.success) {
+					showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_BLOCK_DELETED'), 'success');
+					setTimeout(function() { location.reload(); }, 1000);
+				} else {
+					showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_DELETE_FAILED', d.message || 'Error'), 'error');
+				}
+			})
+			.catch(function(err) {
+				showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_DELETE_FAILED', err.message), 'error');
+			});
+			return;
+		}
+
+		var resetBtn = e.target.closest('.vb-onpage-reset');
+		if (resetBtn) {
+			e.preventDefault();
+			e.stopPropagation();
+			if (!confirm(t('PLG_SYSTEM_VIEWBUILDER_JS_CONFIRM_RESET'))) return;
+			showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_RESETTING'), 'success');
+			fetch(resetBtn.dataset.vbAjax + '&task=revert&file=' + encodeURIComponent(resetBtn.dataset.vbFile))
+				.then(function(r) { return r.json(); })
+				.then(function(resp) {
+					var d = unwrapResponse(resp);
+					if (d.success) {
+						showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_RESET_SUCCESS'), 'success');
+						setTimeout(function() { location.reload(); }, 1000);
+					} else {
+						showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_RESET_FAILED', d.message || 'Error'), 'error');
+					}
+				})
+				.catch(function(err) {
+					showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_RESET_FAILED', err.message), 'error');
+				});
 		}
 	});
 

@@ -5,6 +5,18 @@ All notable changes to the "View Builder" Joomla plugin will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - TBA
+
+### Added
+- **Delete Blocks**: Users can now completely remove blocks from the view directly in On-Page mode.
+- **Override Status UI**: Added a visual indicator bar for user-customized overrides in On-Page mode.
+- **Reset Functionality**: New "Reset Override" button allows one-click restoration of the original view file (deleting the override).
+- **Auto-Cleanup**: The system now automatically strips internal `@vb-auto-generated` markers when saving, converting temporary auto-overrides into permanent user overrides.
+
+### Changed
+- **UI Improvements**: Added specific styling for delete buttons and override status bars.
+- **Improved Detection**: Better logic to distinguish between auto-generated overrides and user-customized files.
+
 ## [1.1.1] - 2026-01-29
 
 ### Fixed
