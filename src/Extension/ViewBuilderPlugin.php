@@ -13,11 +13,14 @@ namespace Joomla\Plugin\System\ViewBuilder\Extension;
 use Joomla\CMS\Event\Application\BeforeCompileHeadEvent;
 use Joomla\CMS\Event\Plugin\AjaxEvent;
 use Joomla\CMS\Factory;
+use Joomla\CMS\Form\Form;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Plugin\CMSPlugin;
 use Joomla\CMS\Session\Session;
 use Joomla\Event\SubscriberInterface;
+use Joomla\Plugin\System\ViewBuilder\Autoload\FormFieldOverrideLoader;
 use Joomla\Plugin\System\ViewBuilder\Autoload\ViewOverrideLoader;
+use Joomla\Plugin\System\ViewBuilder\Service\FormBuilderHelper;
 use Joomla\Plugin\System\ViewBuilder\Service\ViewBuilderHelper;
 use Joomla\Plugin\System\ViewBuilder\Service\ViewParser;
 
@@ -29,6 +32,7 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 	{
 		return [
 			'onAfterInitialise' => 'onAfterInitialise',
+			'onContentPrepareForm' => 'onContentPrepareForm',
 			'onBeforeCompileHead' => 'onBeforeCompileHead',
 			'onAjaxViewbuilder' => 'onAjaxViewbuilder',
 		];
@@ -52,6 +56,41 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 		);
 
 		\spl_autoload_register([$loader, 'loadClass'], true, true);
+
+		$formFieldLoader = new FormFieldOverrideLoader(
+			JPATH_LIBRARIES . '/src/Form/FormField.php',
+			$pluginPath . '/cache/OriginalFormField.php',
+			\dirname(__DIR__) . '/Form/FormField.php'
+		);
+
+		\spl_autoload_register([$formFieldLoader, 'loadClass'], true, true);
+	}
+
+	public function onContentPrepareForm($event): void
+	{
+		if (!$this->isActive()) {
+			return;
+		}
+
+		$form = $event->getArgument('subject');
+		if (!($form instanceof Form)) {
+			return;
+		}
+
+		$formName = $form->getName();
+
+		// Load override XML if it exists
+		$overridePath = FormBuilderHelper::getFormOverridePath($formName);
+		if ($overridePath && file_exists($overridePath)) {
+			FormBuilderHelper::applyFormOverride($form, $overridePath);
+			FormBuilderHelper::markOverridden($formName, $overridePath);
+		}
+
+		// Register form for field wrapping
+		if (ViewBuilderHelper::shouldWrap()) {
+			FormBuilderHelper::registerForm($form);
+			FormBuilderHelper::enableWrapping();
+		}
 	}
 
 	public function onBeforeCompileHead(BeforeCompileHeadEvent $event): void
@@ -132,6 +171,29 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 			'PLG_SYSTEM_VIEWBUILDER_JS_RESETTING',
 			'PLG_SYSTEM_VIEWBUILDER_JS_RESET_SUCCESS',
 			'PLG_SYSTEM_VIEWBUILDER_JS_RESET_FAILED',
+			// Form field builder
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_EDIT_TITLE',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_BUILDER_TITLE',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELD_EDIT_TITLE',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELD_SAVING',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELD_SAVED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELD_SAVE_FAILED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELD_LOADED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELD_DELETED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELD_DELETE_FAILED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_CONFIRM_DELETE_FIELD',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELD_MOVED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELD_MOVE_FAILED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_XML_LOADED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_SAVING_XML',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_XML_SAVED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_XML_SAVE_FAILED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_CONFIRM_REVERT',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_REVERTED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELDS_DETECTED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_SAVE_ORDER',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_ORDER_SAVED',
+			'PLG_SYSTEM_VIEWBUILDER_JS_FORM_NO_CHANGES',
 		];
 		foreach ($jsKeys as $key) {
 			Text::script($key);
@@ -183,6 +245,30 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 				break;
 			case 'delete_block':
 				$result = $this->handleDeleteBlock($input);
+				break;
+			case 'load_form_xml':
+				$result = $this->handleLoadFormXml($input);
+				break;
+			case 'save_form_xml':
+				$result = $this->handleSaveFormXml($input);
+				break;
+			case 'parse_form':
+				$result = $this->handleParseForm($input);
+				break;
+			case 'move_form_field':
+				$result = $this->handleMoveFormField($input);
+				break;
+			case 'delete_form_field':
+				$result = $this->handleDeleteFormField($input);
+				break;
+			case 'revert_form':
+				$result = $this->handleRevertForm($input);
+				break;
+			case 'load_form_field_xml':
+				$result = $this->handleLoadFormFieldXml($input);
+				break;
+			case 'save_form_field_xml':
+				$result = $this->handleSaveFormFieldXml($input);
 				break;
 			default:
 				throw new \RuntimeException(Text::_('PLG_SYSTEM_VIEWBUILDER_UNKNOWN_TASK'), 400);
@@ -938,6 +1024,418 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 		}
 
 		return empty($unique) ? null : array_values($unique);
+	}
+
+	// ========================================================================
+	// Form AJAX Handlers
+	// ========================================================================
+
+	/**
+	 * Strip group prefix from a field identifier.
+	 * E.g. "params.language" → "language", "name" → "name"
+	 */
+	private function bareFieldName(string $fieldId): string
+	{
+		if (strpos($fieldId, '.') !== false) {
+			return substr($fieldId, strrpos($fieldId, '.') + 1);
+		}
+		return $fieldId;
+	}
+
+	/**
+	 * Resolve a form XML path: returns [originalPath, overridePath, snapshotPath, actualPath, isOverride].
+	 *
+	 * Priority for reading: override > snapshot > original
+	 * The snapshot contains the live form XML including plugin-injected fields.
+	 */
+	private function resolveFormPaths(string $formName): array
+	{
+		$originalPath = FormBuilderHelper::getOriginalFormPath($formName);
+		$overridePath = FormBuilderHelper::getFormOverridePath($formName);
+		$snapshotPath = FormBuilderHelper::getSnapshotPath($formName);
+		$isOverride = false;
+
+		if ($overridePath && file_exists($overridePath)) {
+			$actualPath = $overridePath;
+			$isOverride = true;
+		} elseif (file_exists($snapshotPath)) {
+			$actualPath = $snapshotPath;
+		} else {
+			$actualPath = $originalPath;
+		}
+
+		return [$originalPath, $overridePath, $snapshotPath, $actualPath, $isOverride];
+	}
+
+	private function handleLoadFormXml($input): string
+	{
+		$formName = $input->getString('form', '');
+		if (empty($formName)) {
+			return json_encode(['success' => false, 'message' => 'Missing form name']);
+		}
+
+		[$originalPath, $overridePath, $snapshotPath, $actualPath, $isOverride] = $this->resolveFormPaths($formName);
+
+		if (!$actualPath || !file_exists($actualPath)) {
+			return json_encode(['success' => false, 'message' => Text::_('PLG_SYSTEM_VIEWBUILDER_FILE_NOT_FOUND')]);
+		}
+
+		return json_encode([
+			'success'       => true,
+			'content'       => file_get_contents($actualPath),
+			'form'          => $formName,
+			'is_override'   => $isOverride,
+			'override_path' => $overridePath,
+		]);
+	}
+
+	private function handleSaveFormXml($input): string
+	{
+		$formName = $input->getString('form', '');
+		$content  = $input->getRaw('content', '');
+
+		if (empty($formName)) {
+			return json_encode(['success' => false, 'message' => 'Missing form name']);
+		}
+
+		// Validate XML syntax
+		libxml_use_internal_errors(true);
+		$xml = simplexml_load_string($content);
+		if ($xml === false) {
+			$errors = libxml_get_errors();
+			libxml_clear_errors();
+			$msg = !empty($errors) ? $errors[0]->message : 'Invalid XML';
+			return json_encode(['success' => false, 'message' => 'XML error: ' . trim($msg)]);
+		}
+		libxml_use_internal_errors(false);
+
+		$overridePath = FormBuilderHelper::getFormOverridePath($formName);
+		if (!$overridePath) {
+			return json_encode(['success' => false, 'message' => Text::_('PLG_SYSTEM_VIEWBUILDER_CANNOT_DETERMINE_OVERRIDE_PATH')]);
+		}
+
+		$dir = \dirname($overridePath);
+		if (!is_dir($dir)) {
+			mkdir($dir, 0755, true);
+		}
+
+		file_put_contents($overridePath, $content);
+
+		return json_encode([
+			'success'  => true,
+			'saved_to' => $overridePath,
+		]);
+	}
+
+	private function handleParseForm($input): string
+	{
+		$formName = $input->getString('form', '');
+		if (empty($formName)) {
+			return json_encode(['success' => false, 'message' => 'Missing form name']);
+		}
+
+		[$originalPath, $overridePath, $snapshotPath, $actualPath, $isOverride] = $this->resolveFormPaths($formName);
+
+		if (!$actualPath || !file_exists($actualPath)) {
+			return json_encode(['success' => false, 'message' => Text::_('PLG_SYSTEM_VIEWBUILDER_FILE_NOT_FOUND')]);
+		}
+
+		$xml = simplexml_load_file($actualPath);
+		if (!$xml) {
+			return json_encode(['success' => false, 'message' => 'Failed to parse XML']);
+		}
+
+		$fields = [];
+		// Use XPath to find all fieldsets at any nesting level (e.g. inside <fields name="params">)
+		$fieldsets = $xml->xpath('//fieldset');
+		$seenFields = [];
+		foreach ($fieldsets as $fieldset) {
+			$fieldsetName = (string) $fieldset['name'];
+			foreach ($fieldset->children() as $field) {
+				if ($field->getName() !== 'field') {
+					continue;
+				}
+				$name = (string) $field['name'];
+				// Avoid duplicates when same fieldset appears multiple times
+				$key = $fieldsetName . '.' . $name;
+				if (isset($seenFields[$key])) {
+					continue;
+				}
+				$seenFields[$key] = true;
+				$fields[] = [
+					'name'     => $name,
+					'type'     => (string) $field['type'],
+					'label'    => (string) ($field['label'] ?? $field['name']),
+					'fieldset' => $fieldsetName,
+				];
+			}
+		}
+
+		return json_encode([
+			'success'     => true,
+			'form'        => $formName,
+			'is_override' => $isOverride,
+			'fields'      => $fields,
+		]);
+	}
+
+	private function handleMoveFormField($input): string
+	{
+		$formName    = $input->getString('form', '');
+		$fieldName   = $input->getString('field', '');
+		$afterField  = $input->getString('after', '');
+		$beforeField = $input->getString('before', '');
+
+		if (empty($formName) || empty($fieldName)) {
+			return json_encode(['success' => false, 'message' => 'Missing parameters']);
+		}
+
+		[$originalPath, $overridePath, $snapshotPath, $actualPath, $isOverride] = $this->resolveFormPaths($formName);
+
+		if (!$actualPath || !file_exists($actualPath)) {
+			return json_encode(['success' => false, 'message' => Text::_('PLG_SYSTEM_VIEWBUILDER_FILE_NOT_FOUND')]);
+		}
+
+		$savePath = $overridePath ?: $actualPath;
+
+		$xml = simplexml_load_file($actualPath);
+		if (!$xml) {
+			return json_encode(['success' => false, 'message' => 'Failed to parse XML']);
+		}
+
+		$bareFieldName = $this->bareFieldName($fieldName);
+		$bareAfterField = !empty($afterField) ? $this->bareFieldName($afterField) : '';
+		$bareBeforeField = !empty($beforeField) ? $this->bareFieldName($beforeField) : '';
+
+		// Resolve ALL XPath lookups to DOM nodes BEFORE any DOM mutations,
+		// because SimpleXML's internal state can become inconsistent after direct DOM changes.
+		$movedFields = $xml->xpath('//field[@name="' . $bareFieldName . '"]');
+		if (empty($movedFields)) {
+			return json_encode(['success' => false, 'message' => Text::sprintf('PLG_SYSTEM_VIEWBUILDER_BLOCK_NOT_FOUND', $fieldName)]);
+		}
+		$movedNode = dom_import_simplexml($movedFields[0]);
+
+		$afterNode = null;
+		$beforeNode = null;
+		if (!empty($bareAfterField)) {
+			$matches = $xml->xpath('//field[@name="' . $bareAfterField . '"]');
+			if (!empty($matches)) {
+				$afterNode = dom_import_simplexml($matches[0]);
+			}
+		}
+		if (!empty($bareBeforeField)) {
+			$matches = $xml->xpath('//field[@name="' . $bareBeforeField . '"]');
+			if (!empty($matches)) {
+				$beforeNode = dom_import_simplexml($matches[0]);
+			}
+		}
+		$fallbackFieldsets = $xml->xpath('//fieldset');
+
+		// Now perform DOM mutations
+		$movedNode->parentNode->removeChild($movedNode);
+
+		if ($afterNode) {
+			// Insert after the afterNode (in whatever fieldset it's in)
+			$targetParent = $afterNode->parentNode;
+			if ($afterNode->nextSibling) {
+				$targetParent->insertBefore($movedNode, $afterNode->nextSibling);
+			} else {
+				$targetParent->appendChild($movedNode);
+			}
+		} elseif ($beforeNode) {
+			// Insert before the beforeNode (cross-fieldset: after="" but before=username)
+			$targetParent = $beforeNode->parentNode;
+			$targetParent->insertBefore($movedNode, $beforeNode);
+		} else {
+			// No reference field — insert at beginning of first fieldset
+			if (!empty($fallbackFieldsets)) {
+				$targetDom = dom_import_simplexml($fallbackFieldsets[0]);
+				$firstField = null;
+				foreach ($targetDom->childNodes as $node) {
+					if ($node->nodeType === XML_ELEMENT_NODE && $node->localName === 'field') {
+						$firstField = $node;
+						break;
+					}
+				}
+				if ($firstField) {
+					$targetDom->insertBefore($movedNode, $firstField);
+				} else {
+					$targetDom->appendChild($movedNode);
+				}
+			}
+		}
+
+		$dir = \dirname($savePath);
+		if (!is_dir($dir)) {
+			mkdir($dir, 0755, true);
+		}
+
+		$doc = $movedNode->ownerDocument;
+		$doc->formatOutput = true;
+		file_put_contents($savePath, $doc->saveXML($doc->documentElement));
+
+		return json_encode(['success' => true, 'saved_to' => $savePath]);
+	}
+
+	private function handleDeleteFormField($input): string
+	{
+		$formName  = $input->getString('form', '');
+		$fieldName = $input->getString('field', '');
+
+		if (empty($formName) || empty($fieldName)) {
+			return json_encode(['success' => false, 'message' => 'Missing parameters']);
+		}
+
+		$bareFieldName = $this->bareFieldName($fieldName);
+
+		[$originalPath, $overridePath, $snapshotPath, $actualPath, $isOverride] = $this->resolveFormPaths($formName);
+
+		if (!$actualPath || !file_exists($actualPath)) {
+			return json_encode(['success' => false, 'message' => Text::_('PLG_SYSTEM_VIEWBUILDER_FILE_NOT_FOUND')]);
+		}
+
+		$savePath = $overridePath ?: $actualPath;
+
+		$xml = simplexml_load_file($actualPath);
+		if (!$xml) {
+			return json_encode(['success' => false, 'message' => 'Failed to parse XML']);
+		}
+
+		// Mark the field as deleted rather than removing it, so that
+		// applyFormOverride won't re-add it from the live form as a "new" field.
+		$matches = $xml->xpath('//field[@name="' . $bareFieldName . '"]');
+		if (empty($matches)) {
+			return json_encode(['success' => false, 'message' => Text::sprintf('PLG_SYSTEM_VIEWBUILDER_BLOCK_NOT_FOUND', $fieldName)]);
+		}
+		$node = dom_import_simplexml($matches[0]);
+		$node->setAttribute('vb-deleted', 'true');
+
+		$dir = \dirname($savePath);
+		if (!is_dir($dir)) {
+			mkdir($dir, 0755, true);
+		}
+
+		$doc = dom_import_simplexml($xml)->ownerDocument;
+		$doc->formatOutput = true;
+		file_put_contents($savePath, $doc->saveXML($doc->documentElement));
+
+		return json_encode(['success' => true]);
+	}
+
+	private function handleRevertForm($input): string
+	{
+		$formName = $input->getString('form', '');
+		if (empty($formName)) {
+			return json_encode(['success' => false, 'message' => 'Missing form name']);
+		}
+
+		$overridePath = FormBuilderHelper::getFormOverridePath($formName);
+		if ($overridePath && file_exists($overridePath)) {
+			unlink($overridePath);
+
+			// Clean up empty directories
+			$dir = \dirname($overridePath);
+			while ($dir !== JPATH_ROOT && is_dir($dir) && count(scandir($dir)) === 2) {
+				rmdir($dir);
+				$dir = \dirname($dir);
+			}
+		}
+
+		return json_encode(['success' => true, 'reverted' => true]);
+	}
+
+	private function handleLoadFormFieldXml($input): string
+	{
+		$formName  = $input->getString('form', '');
+		$fieldName = $input->getString('field', '');
+
+		if (empty($formName) || empty($fieldName)) {
+			return json_encode(['success' => false, 'message' => 'Missing parameters']);
+		}
+
+		[$originalPath, $overridePath, $snapshotPath, $actualPath, $isOverride] = $this->resolveFormPaths($formName);
+
+		if (!$actualPath || !file_exists($actualPath)) {
+			return json_encode(['success' => false, 'message' => Text::_('PLG_SYSTEM_VIEWBUILDER_FILE_NOT_FOUND')]);
+		}
+
+		$xml = simplexml_load_file($actualPath);
+		if (!$xml) {
+			return json_encode(['success' => false, 'message' => 'Failed to parse XML']);
+		}
+
+		$bareFieldName = $this->bareFieldName($fieldName);
+		$fields = $xml->xpath('//field[@name="' . $bareFieldName . '"]');
+		if (empty($fields)) {
+			return json_encode(['success' => false, 'message' => Text::sprintf('PLG_SYSTEM_VIEWBUILDER_BLOCK_NOT_FOUND', $fieldName)]);
+		}
+
+		$fieldXml = $fields[0]->asXML();
+
+		return json_encode([
+			'success' => true,
+			'content' => $fieldXml,
+			'field'   => $fieldName,
+			'form'    => $formName,
+		]);
+	}
+
+	private function handleSaveFormFieldXml($input): string
+	{
+		$formName  = $input->getString('form', '');
+		$fieldName = $input->getString('field', '');
+		$content   = $input->getRaw('content', '');
+
+		if (empty($formName) || empty($fieldName) || empty($content)) {
+			return json_encode(['success' => false, 'message' => 'Missing parameters']);
+		}
+
+		$bareFieldName = $this->bareFieldName($fieldName);
+
+		// Validate the field XML
+		libxml_use_internal_errors(true);
+		$newFieldXml = simplexml_load_string($content);
+		if ($newFieldXml === false) {
+			$errors = libxml_get_errors();
+			libxml_clear_errors();
+			$msg = !empty($errors) ? $errors[0]->message : 'Invalid XML';
+			return json_encode(['success' => false, 'message' => 'XML error: ' . trim($msg)]);
+		}
+		libxml_use_internal_errors(false);
+
+		[$originalPath, $overridePath, $snapshotPath, $actualPath, $isOverride] = $this->resolveFormPaths($formName);
+
+		if (!$actualPath || !file_exists($actualPath)) {
+			return json_encode(['success' => false, 'message' => Text::_('PLG_SYSTEM_VIEWBUILDER_FILE_NOT_FOUND')]);
+		}
+
+		$savePath = $overridePath ?: $actualPath;
+
+		$xml = simplexml_load_file($actualPath);
+		if (!$xml) {
+			return json_encode(['success' => false, 'message' => 'Failed to parse XML']);
+		}
+
+		// Find and replace the field (XPath searches through all nesting levels)
+		$matches = $xml->xpath('//field[@name="' . $bareFieldName . '"]');
+		if (empty($matches)) {
+			return json_encode(['success' => false, 'message' => Text::sprintf('PLG_SYSTEM_VIEWBUILDER_BLOCK_NOT_FOUND', $fieldName)]);
+		}
+		$oldNode = dom_import_simplexml($matches[0]);
+		$newDom = dom_import_simplexml($newFieldXml);
+		$imported = $oldNode->ownerDocument->importNode($newDom, true);
+		$oldNode->parentNode->replaceChild($imported, $oldNode);
+
+		$dir = \dirname($savePath);
+		if (!is_dir($dir)) {
+			mkdir($dir, 0755, true);
+		}
+
+		$doc = dom_import_simplexml($xml)->ownerDocument;
+		$doc->formatOutput = true;
+		file_put_contents($savePath, $doc->saveXML($doc->documentElement));
+
+		return json_encode(['success' => true, 'saved_to' => $savePath]);
 	}
 
 	/**

@@ -5,16 +5,19 @@ All notable changes to the "View Builder" Joomla plugin will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - TBA
+## [1.2.0] - 2026-02-02
 
 ### Added
-- **Delete Blocks**: Users can now completely remove blocks from the view directly in On-Page mode.
+- **Form Builder**: comprehensive tool to edit, reorder, and hide form fields directly from the frontend.
+- **Form Overrides**: Automatically generates XML form overrides in `templates/[template]/html/[component]/forms/`.
+- **Field Editing**: Intercepts `Joomla\CMS\Form\FormField` to wrap inputs with drag handles and edit buttons.
+- **Delete Blocks**: Users can now completely remove blocks from views directly in On-Page mode.
 - **Override Status UI**: Added a visual indicator bar for user-customized overrides in On-Page mode.
 - **Reset Functionality**: New "Reset Override" button allows one-click restoration of the original view file (deleting the override).
-- **Auto-Cleanup**: The system now automatically strips internal `@vb-auto-generated` markers when saving, converting temporary auto-overrides into permanent user overrides.
+- **Auto-Cleanup**: The system now automatically strips internal `@vb-auto-generated` markers when saving.
 
 ### Changed
-- **UI Improvements**: Added specific styling for delete buttons and override status bars.
+- **UI Improvements**: Added specific styling for delete buttons, override checks, and form field wrappers.
 - **Improved Detection**: Better logic to distinguish between auto-generated overrides and user-customized files.
 
 ## [1.1.1] - 2026-01-29

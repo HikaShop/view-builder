@@ -44,6 +44,15 @@ Reorder blocks within a view file using a drag-and-drop interface.
 | :---: | :---: |
 | ![Joomla Builder](screenshots/builder-joomla.png) | ![HikaShop Builder](screenshots/builder-hikashop.png) |
 
+## Form Builder
+
+The plugin now includes a powerful **Form Builder** that allows you to customize Joomla forms (like Profile Edit, Contact Form, Article Edit, etc.) from the frontend. IF third party components also use the Joomla form API, they will be supported too.
+
+- **Reorder Fields**: Drag and drop fields within their fieldsets.
+- **Delete Fields**: Hide fields easily (creates a `vb-deleted="true"` attribute in the override).
+- **Edit Attributes**: Modify standard field attributes via XML overrides.
+- **Safe Overrides**: Changes are saved to `templates/[template]/html/[component]/forms/[form].xml`.
+
 ## Installation
 
 1. Download the plugin package.

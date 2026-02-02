@@ -889,4 +889,729 @@
 	} else {
 		initOnPage();
 	}
+
+	// ========================================================================
+	// Form Field Builder
+	// ========================================================================
+
+	var formFieldSortables = [];
+
+	// Click handler for form field edit, delete buttons
+	document.addEventListener('click', function(e) {
+		var editBtn = e.target.closest('.vb-form-field-edit');
+		if (editBtn) {
+			e.preventDefault();
+			e.stopPropagation();
+			openFormFieldEditor(editBtn.dataset.vbForm, editBtn.dataset.vbField, editBtn.dataset.vbAjax);
+			return;
+		}
+
+		var deleteBtn = e.target.closest('.vb-form-field-delete');
+		if (deleteBtn) {
+			e.preventDefault();
+			e.stopPropagation();
+			var fieldName = deleteBtn.dataset.vbField;
+			if (!confirm(t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_CONFIRM_DELETE_FIELD', fieldName))) return;
+			var formData = new FormData();
+			formData.append('form', deleteBtn.dataset.vbForm);
+			formData.append('field', fieldName);
+			fetch(deleteBtn.dataset.vbAjax + '&task=delete_form_field', {
+				method: 'POST',
+				body: formData
+			})
+			.then(function(r) { return r.json(); })
+			.then(function(resp) {
+				var d = unwrapResponse(resp);
+				if (d.success) {
+					showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELD_DELETED'), 'success');
+					setTimeout(function() { location.reload(); }, 1000);
+				} else {
+					showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELD_DELETE_FAILED', d.message || 'Error'), 'error');
+				}
+			})
+			.catch(function(err) {
+				showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELD_DELETE_FAILED', err.message), 'error');
+			});
+			return;
+		}
+
+		// Popup mode: form-level Edit button
+		var formEditBtn = e.target.closest('.vb-form-edit-btn');
+		if (formEditBtn) {
+			e.preventDefault();
+			e.stopPropagation();
+			openFormXmlEditor(formEditBtn.dataset.vbForm, formEditBtn.dataset.vbAjax);
+			return;
+		}
+
+		// Popup mode: form-level Builder button
+		var formBuilderBtn = e.target.closest('.vb-form-builder-btn');
+		if (formBuilderBtn) {
+			e.preventDefault();
+			e.stopPropagation();
+			openFormBuilder(formBuilderBtn.dataset.vbForm, formBuilderBtn.dataset.vbAjax);
+			return;
+		}
+
+		// Form override revert button (both modes)
+		var revertBtn = e.target.closest('.vb-form-revert-btn');
+		if (revertBtn) {
+			e.preventDefault();
+			e.stopPropagation();
+			var formName = revertBtn.dataset.vbForm;
+			if (!confirm(t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_CONFIRM_REVERT'))) return;
+			fetch(revertBtn.dataset.vbAjax + '&task=revert_form&form=' + encodeURIComponent(formName))
+				.then(function(r) { return r.json(); })
+				.then(function(resp) {
+					var d = unwrapResponse(resp);
+					if (d.success) {
+						showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_REVERTED'), 'success');
+						setTimeout(function() { location.reload(); }, 1000);
+					} else {
+						showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_XML_SAVE_FAILED', d.message || 'Error'), 'error');
+					}
+				})
+				.catch(function(err) {
+					showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_XML_SAVE_FAILED', err.message), 'error');
+				});
+			return;
+		}
+	});
+
+	function openFormFieldEditor(formName, fieldName, ajaxUrl) {
+		fetch(ajaxUrl + '&task=load_form_field_xml&form=' + encodeURIComponent(formName) + '&field=' + encodeURIComponent(fieldName))
+			.then(function(r) { return r.json(); })
+			.then(function(resp) {
+				var data = unwrapResponse(resp);
+				if (!data.success) {
+					alert(t('PLG_SYSTEM_VIEWBUILDER_JS_ERROR', data.message || 'Unknown error'));
+					return;
+				}
+				showFormFieldEditorModal(data, formName, fieldName, ajaxUrl);
+			})
+			.catch(function(err) {
+				alert(t('PLG_SYSTEM_VIEWBUILDER_JS_ERROR', err.message));
+			});
+	}
+
+	function showFormFieldEditorModal(data, formName, fieldName, ajaxUrl) {
+		closeModal();
+
+		var overlay = document.createElement('div');
+		overlay.className = 'vb-modal-overlay';
+		overlay.addEventListener('click', function(e) {
+			if (e.target === overlay) closeModal();
+		});
+
+		var modal = document.createElement('div');
+		modal.className = 'vb-modal';
+
+		var header = document.createElement('div');
+		header.className = 'vb-modal-header';
+		header.innerHTML = '<div class="vb-modal-title">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELD_EDIT_TITLE', fieldName)) + ' <span style="color:#999;font-size:11px;">' + escapeHtml(formName) + '</span></div>' +
+			'<div class="vb-modal-actions">' +
+			'<button type="button" class="vb-save-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_SAVE_AS_OVERRIDE')) + '</button>' +
+			'<button type="button" class="vb-close-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_CLOSE')) + '</button>' +
+			'</div>';
+
+		var body = document.createElement('div');
+		body.className = 'vb-modal-body';
+
+		var textarea = document.createElement('textarea');
+		textarea.value = data.content;
+		textarea.spellcheck = false;
+		textarea.addEventListener('keydown', function(e) {
+			if (e.key === 'Tab') {
+				e.preventDefault();
+				var start = this.selectionStart;
+				var end = this.selectionEnd;
+				this.value = this.value.substring(0, start) + '\t' + this.value.substring(end);
+				this.selectionStart = this.selectionEnd = start + 1;
+			}
+			if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+				e.preventDefault();
+				saveFormField();
+			}
+		});
+		body.appendChild(textarea);
+
+		var status = document.createElement('div');
+		status.className = 'vb-modal-status';
+		status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELD_LOADED');
+
+		modal.appendChild(header);
+		modal.appendChild(body);
+		modal.appendChild(status);
+		overlay.appendChild(modal);
+		document.body.appendChild(overlay);
+		currentModal = overlay;
+		textarea.focus();
+
+		var saveBtn = header.querySelector('.vb-save-btn');
+		var closeBtn = header.querySelector('.vb-close-btn');
+
+		function saveFormField() {
+			status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELD_SAVING');
+			var formData = new FormData();
+			formData.append('form', formName);
+			formData.append('field', fieldName);
+			formData.append('content', textarea.value);
+
+			fetch(ajaxUrl + '&task=save_form_field_xml', {
+				method: 'POST',
+				body: formData
+			})
+			.then(function(r) { return r.json(); })
+			.then(function(resp) {
+				var d = unwrapResponse(resp);
+				if (d.success) {
+					status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELD_SAVED');
+					status.style.color = '';
+				} else {
+					status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELD_SAVE_FAILED', d.message || 'Unknown error');
+					status.style.color = '#d9534f';
+				}
+			})
+			.catch(function(err) {
+				status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_SAVE_ERROR', err.message);
+				status.style.color = '#d9534f';
+			});
+		}
+
+		saveBtn.addEventListener('click', saveFormField);
+		closeBtn.addEventListener('click', closeModal);
+		document.addEventListener('keydown', escHandler);
+	}
+
+	function openFormXmlEditor(formName, ajaxUrl) {
+		fetch(ajaxUrl + '&task=load_form_xml&form=' + encodeURIComponent(formName))
+			.then(function(r) { return r.json(); })
+			.then(function(resp) {
+				var data = unwrapResponse(resp);
+				if (!data.success) {
+					alert(t('PLG_SYSTEM_VIEWBUILDER_JS_ERROR_LOADING_FILE', data.message || 'Unknown error'));
+					return;
+				}
+				showFormXmlEditorModal(data, formName, ajaxUrl);
+			})
+			.catch(function(err) {
+				alert(t('PLG_SYSTEM_VIEWBUILDER_JS_ERROR', err.message));
+			});
+	}
+
+	function showFormXmlEditorModal(data, formName, ajaxUrl) {
+		closeModal();
+
+		var overlay = document.createElement('div');
+		overlay.className = 'vb-modal-overlay';
+		overlay.addEventListener('click', function(e) {
+			if (e.target === overlay) closeModal();
+		});
+
+		var modal = document.createElement('div');
+		modal.className = 'vb-modal';
+
+		var header = document.createElement('div');
+		header.className = 'vb-modal-header';
+		header.innerHTML = '<div class="vb-modal-title">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_EDIT_TITLE', formName)) +
+			(data.is_override ? ' <span style="color:#5cb85c;font-size:11px;">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_OVERRIDE_LABEL')) + '</span>' : ' <span style="color:#999;font-size:11px;">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_ORIGINAL_LABEL')) + '</span>') +
+			'</div>' +
+			'<div class="vb-modal-actions">' +
+			(data.is_override ? '<button type="button" class="vb-revert-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_REVERT_TO_ORIGINAL')) + '</button>' : '') +
+			'<button type="button" class="vb-builder-switch-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_BUILDER')) + '</button>' +
+			'<button type="button" class="vb-save-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_SAVE_AS_OVERRIDE')) + '</button>' +
+			'<button type="button" class="vb-close-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_CLOSE')) + '</button>' +
+			'</div>';
+
+		var body = document.createElement('div');
+		body.className = 'vb-modal-body';
+
+		var textarea = document.createElement('textarea');
+		textarea.value = data.content;
+		textarea.spellcheck = false;
+		textarea.addEventListener('keydown', function(e) {
+			if (e.key === 'Tab') {
+				e.preventDefault();
+				var start = this.selectionStart;
+				var end = this.selectionEnd;
+				this.value = this.value.substring(0, start) + '\t' + this.value.substring(end);
+				this.selectionStart = this.selectionEnd = start + 1;
+			}
+			if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+				e.preventDefault();
+				saveFormXml();
+			}
+		});
+		body.appendChild(textarea);
+
+		var status = document.createElement('div');
+		status.className = 'vb-modal-status';
+		status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_XML_LOADED');
+
+		modal.appendChild(header);
+		modal.appendChild(body);
+		modal.appendChild(status);
+		overlay.appendChild(modal);
+		document.body.appendChild(overlay);
+		currentModal = overlay;
+		textarea.focus();
+
+		var saveBtn = header.querySelector('.vb-save-btn');
+		var closeBtn = header.querySelector('.vb-close-btn');
+		var revertBtn = header.querySelector('.vb-revert-btn');
+		var builderSwitchBtn = header.querySelector('.vb-builder-switch-btn');
+
+		function saveFormXml() {
+			status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_SAVING_XML');
+			var formData = new FormData();
+			formData.append('form', formName);
+			formData.append('content', textarea.value);
+
+			fetch(ajaxUrl + '&task=save_form_xml', {
+				method: 'POST',
+				body: formData
+			})
+			.then(function(r) { return r.json(); })
+			.then(function(resp) {
+				var d = unwrapResponse(resp);
+				if (d.success) {
+					status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_XML_SAVED');
+					status.style.color = '';
+				} else {
+					status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_XML_SAVE_FAILED', d.message || 'Unknown error');
+					status.style.color = '#d9534f';
+				}
+			})
+			.catch(function(err) {
+				status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_SAVE_ERROR', err.message);
+				status.style.color = '#d9534f';
+			});
+		}
+
+		saveBtn.addEventListener('click', saveFormXml);
+		closeBtn.addEventListener('click', closeModal);
+
+		if (revertBtn) {
+			revertBtn.addEventListener('click', function() {
+				if (!confirm(t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_CONFIRM_REVERT'))) return;
+				fetch(ajaxUrl + '&task=revert_form&form=' + encodeURIComponent(formName))
+					.then(function(r) { return r.json(); })
+					.then(function(resp) {
+						var d = unwrapResponse(resp);
+						if (d.success) {
+							status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_REVERTED');
+							setTimeout(function() { location.reload(); }, 1000);
+						}
+					});
+			});
+		}
+
+		if (builderSwitchBtn) {
+			builderSwitchBtn.addEventListener('click', function() {
+				closeModal();
+				openFormBuilder(formName, ajaxUrl);
+			});
+		}
+
+		document.addEventListener('keydown', escHandler);
+	}
+
+	function openFormBuilder(formName, ajaxUrl) {
+		fetch(ajaxUrl + '&task=parse_form&form=' + encodeURIComponent(formName))
+			.then(function(r) { return r.json(); })
+			.then(function(resp) {
+				var data = unwrapResponse(resp);
+				if (!data.success) {
+					alert(t('PLG_SYSTEM_VIEWBUILDER_JS_ERROR_PARSING', data.message || 'Unknown error'));
+					return;
+				}
+				showFormBuilderModal(data, formName, ajaxUrl);
+			})
+			.catch(function(err) {
+				alert(t('PLG_SYSTEM_VIEWBUILDER_JS_ERROR', err.message));
+			});
+	}
+
+	function showFormBuilderModal(parseData, formName, ajaxUrl) {
+		closeModal();
+
+		var overlay = document.createElement('div');
+		overlay.className = 'vb-modal-overlay';
+		overlay.addEventListener('click', function(e) {
+			if (e.target === overlay) closeModal();
+		});
+
+		var modal = document.createElement('div');
+		modal.className = 'vb-modal';
+		var fields = parseData.fields || [];
+
+		var header = document.createElement('div');
+		header.className = 'vb-modal-header';
+		header.innerHTML = '<div class="vb-modal-title">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_BUILDER_TITLE', formName)) + '</div>' +
+			'<div class="vb-modal-actions">' +
+			'<button type="button" class="vb-save-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_SAVE_ORDER')) + '</button>' +
+			'<button type="button" class="vb-builder-switch-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_CODE_EDITOR')) + '</button>' +
+			'<button type="button" class="vb-close-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_CLOSE')) + '</button>' +
+			'</div>';
+
+		var body = document.createElement('div');
+		body.className = 'vb-modal-body';
+
+		var container = document.createElement('div');
+		container.className = 'vb-builder-container';
+
+		// Group fields by fieldset
+		var fieldsets = {};
+		var fieldsetOrder = [];
+		fields.forEach(function(field) {
+			var fs = field.fieldset || 'default';
+			if (!fieldsets[fs]) {
+				fieldsets[fs] = [];
+				fieldsetOrder.push(fs);
+			}
+			fieldsets[fs].push(field);
+		});
+
+		fieldsetOrder.forEach(function(fsName) {
+			var fsLabel = document.createElement('div');
+			fsLabel.className = 'vb-form-fieldset-label';
+			fsLabel.textContent = fsName;
+			container.appendChild(fsLabel);
+
+			var blockList = document.createElement('div');
+			blockList.className = 'vb-builder-blocks vb-form-builder-fieldset';
+			blockList.dataset.fieldset = fsName;
+
+			fieldsets[fsName].forEach(function(field) {
+				var item = document.createElement('div');
+				item.className = 'vb-block-item';
+				item.dataset.fieldName = field.name;
+				item.dataset.fieldset = fsName;
+				item.innerHTML =
+					'<span class="vb-block-grip">&#9776;</span>' +
+					'<span class="vb-block-name">' + escapeHtml(field.name) + '</span>' +
+					'<span class="vb-block-type vb-type-layout">' + escapeHtml(field.type) + '</span>' +
+					'<span class="vb-block-lines">' + escapeHtml(field.label) + '</span>';
+				blockList.appendChild(item);
+			});
+
+			container.appendChild(blockList);
+		});
+
+		body.appendChild(container);
+
+		var status = document.createElement('div');
+		status.className = 'vb-modal-status';
+		status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELDS_DETECTED', fields.length);
+
+		modal.appendChild(header);
+		modal.appendChild(body);
+		modal.appendChild(status);
+		overlay.appendChild(modal);
+		document.body.appendChild(overlay);
+		currentModal = overlay;
+
+		// Initialize SortableJS on each fieldset list
+		function initFormSortable() {
+			var fieldsetLists = container.querySelectorAll('.vb-form-builder-fieldset');
+			fieldsetLists.forEach(function(list) {
+				Sortable.create(list, {
+					animation: 150,
+					handle: '.vb-block-grip',
+					ghostClass: 'sortable-ghost',
+					dragClass: 'sortable-drag',
+					onEnd: function() {
+						status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_ORDER_CHANGED');
+					}
+				});
+			});
+		}
+
+		if (typeof Sortable !== 'undefined') {
+			initFormSortable();
+		} else {
+			var script = document.createElement('script');
+			script.src = 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js';
+			script.onload = initFormSortable;
+			document.head.appendChild(script);
+		}
+
+		// Wire buttons
+		var saveBtn = header.querySelector('.vb-save-btn');
+		var closeBtn = header.querySelector('.vb-close-btn');
+		var editorSwitchBtn = header.querySelector('.vb-builder-switch-btn');
+
+		saveBtn.addEventListener('click', function() {
+			// Collect new order per fieldset and send move requests
+			var fieldsetLists = container.querySelectorAll('.vb-form-builder-fieldset');
+			var changed = false;
+			var promises = [];
+
+			fieldsetLists.forEach(function(list) {
+				var fsName = list.dataset.fieldset;
+				var items = list.querySelectorAll('.vb-block-item');
+				var newOrder = [];
+				items.forEach(function(item) { newOrder.push(item.dataset.fieldName); });
+
+				// Compare with original
+				var origFields = fieldsets[fsName] || [];
+				var origOrder = origFields.map(function(f) { return f.name; });
+				var orderChanged = origOrder.some(function(name, i) { return name !== newOrder[i]; });
+
+				if (!orderChanged) return;
+				changed = true;
+
+				// Send move requests sequentially for this fieldset
+				// We'll rebuild the full order by sending save_form_xml with reordered XML
+			});
+
+			if (!changed) {
+				status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_NO_CHANGES');
+				return;
+			}
+
+			// Load full XML, reorder fields per fieldset, and save
+			status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_SAVING_ORDER');
+			fetch(ajaxUrl + '&task=load_form_xml&form=' + encodeURIComponent(formName))
+				.then(function(r) { return r.json(); })
+				.then(function(resp) {
+					var d = unwrapResponse(resp);
+					if (!d.success) {
+						status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_SAVE_FAILED', d.message || 'Error');
+						status.style.color = '#d9534f';
+						return;
+					}
+
+					// Parse and reorder XML
+					var parser = new DOMParser();
+					var xmlDoc = parser.parseFromString(d.content, 'text/xml');
+
+					fieldsetLists.forEach(function(list) {
+						var fsName = list.dataset.fieldset;
+						var items = list.querySelectorAll('.vb-block-item');
+						var newOrder = [];
+						items.forEach(function(item) { newOrder.push(item.dataset.fieldName); });
+
+						// Find the fieldset element in the XML
+						var fsElements = xmlDoc.querySelectorAll('fieldset[name="' + fsName + '"]');
+						if (fsElements.length === 0) return;
+						var fsEl = fsElements[0];
+
+						// Extract field elements
+						var fieldMap = {};
+						var fieldNodes = fsEl.querySelectorAll(':scope > field');
+						fieldNodes.forEach(function(node) {
+							fieldMap[node.getAttribute('name')] = node;
+						});
+
+						// Remove all field elements
+						fieldNodes.forEach(function(node) { fsEl.removeChild(node); });
+
+						// Re-add in new order
+						newOrder.forEach(function(name) {
+							if (fieldMap[name]) {
+								fsEl.appendChild(fieldMap[name]);
+							}
+						});
+					});
+
+					// Serialize back to string
+					var serializer = new XMLSerializer();
+					var newXml = serializer.serializeToString(xmlDoc.documentElement);
+
+					// Format with basic indentation
+					newXml = formatXml(newXml);
+
+					var formData = new FormData();
+					formData.append('form', formName);
+					formData.append('content', newXml);
+
+					return fetch(ajaxUrl + '&task=save_form_xml', {
+						method: 'POST',
+						body: formData
+					});
+				})
+				.then(function(r) { if (r) return r.json(); })
+				.then(function(resp) {
+					if (!resp) return;
+					var d = unwrapResponse(resp);
+					if (d.success) {
+						status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_ORDER_SAVED');
+						status.style.color = '';
+					} else {
+						status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_SAVE_FAILED', d.message || 'Error');
+						status.style.color = '#d9534f';
+					}
+				})
+				.catch(function(err) {
+					status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_SAVE_ERROR', err.message);
+					status.style.color = '#d9534f';
+				});
+		});
+
+		closeBtn.addEventListener('click', closeModal);
+
+		if (editorSwitchBtn) {
+			editorSwitchBtn.addEventListener('click', function() {
+				closeModal();
+				openFormXmlEditor(formName, ajaxUrl);
+			});
+		}
+
+		document.addEventListener('keydown', escHandler);
+	}
+
+	/**
+	 * Basic XML formatter — adds newlines and indentation.
+	 */
+	function formatXml(xml) {
+		var formatted = '';
+		var indent = '';
+		var tab = '\t';
+		xml.split(/>\s*</).forEach(function(node) {
+			if (node.match(/^\/\w/)) {
+				indent = indent.substring(tab.length);
+			}
+			formatted += indent + '<' + node + '>\n';
+			if (node.match(/^<?\w[^>]*[^\/]$/) && !node.match(/^(input|br|hr|img|meta|link)/i)) {
+				indent += tab;
+			}
+		});
+		return formatted.substring(1, formatted.length - 2);
+	}
+
+	/**
+	 * Initialize on-page sortable for form fields.
+	 * Groups fields by form name + fieldset for drag-and-drop reordering.
+	 */
+	function initFormFieldSortable() {
+		var fields = document.querySelectorAll('.vb-form-field-onpage');
+		if (fields.length === 0) return;
+
+		// Group fields by form
+		var formGroups = {};
+		fields.forEach(function(field) {
+			var formName = field.dataset.vbForm;
+			if (!formGroups[formName]) {
+				formGroups[formName] = [];
+			}
+			formGroups[formName].push(field);
+		});
+
+		Object.keys(formGroups).forEach(function(formName) {
+			var groupFields = formGroups[formName];
+			if (groupFields.length < 2) return;
+
+			var ajaxUrl = groupFields[0].dataset.vbAjax;
+
+			// Sub-group by parent DOM node
+			var parentMap = new Map();
+			groupFields.forEach(function(field) {
+				var parent = field.parentNode;
+				if (!parentMap.has(parent)) {
+					parentMap.set(parent, []);
+				}
+				parentMap.get(parent).push(field);
+			});
+
+			var groupNameSafe = 'vb-form-' + formName.replace(/[^a-zA-Z0-9]/g, '_');
+
+			parentMap.forEach(function(siblings, parent) {
+				if (siblings.length < 2) return;
+
+				var instance = Sortable.create(parent, {
+					group: groupNameSafe,
+					animation: 150,
+					handle: '.vb-form-field-handle',
+					draggable: '.vb-form-field-onpage[data-vb-form="' + formName.replace(/"/g, '\\"') + '"]',
+					ghostClass: 'vb-form-field-ghost',
+					dragClass: 'vb-form-field-drag',
+					onStart: function() {
+						document.body.classList.add('vb-form-dragging');
+					},
+					onEnd: function(evt) {
+						document.body.classList.remove('vb-form-dragging');
+
+						var movedField = evt.item;
+						var fieldName = movedField.dataset.vbField;
+						var fieldGroup = movedField.dataset.vbFieldGroup || '';
+
+						// Find "after" field (previous sibling in new container)
+						var prevSibling = movedField.previousElementSibling;
+						var afterField = '';
+						while (prevSibling) {
+							if (prevSibling.classList.contains('vb-form-field-onpage') &&
+								prevSibling.dataset.vbForm === formName) {
+								afterField = prevSibling.dataset.vbField;
+								break;
+							}
+							prevSibling = prevSibling.previousElementSibling;
+						}
+
+						// Find "before" field (next sibling) for cross-fieldset positioning
+						var nextSibling = movedField.nextElementSibling;
+						var beforeField = '';
+						while (nextSibling) {
+							if (nextSibling.classList.contains('vb-form-field-onpage') &&
+								nextSibling.dataset.vbForm === formName) {
+								beforeField = nextSibling.dataset.vbField;
+								break;
+							}
+							nextSibling = nextSibling.nextElementSibling;
+						}
+
+						var formData = new FormData();
+						formData.append('form', formName);
+						formData.append('field', fieldName);
+						formData.append('after', afterField);
+						formData.append('before', beforeField);
+						formData.append('fieldset', fieldGroup);
+
+						fetch(ajaxUrl + '&task=move_form_field', {
+							method: 'POST',
+							body: formData
+						})
+						.then(function(r) { return r.json(); })
+						.then(function(resp) {
+							var d = unwrapResponse(resp);
+							if (d.success) {
+								showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELD_MOVED'), 'success');
+							} else {
+								showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELD_MOVE_FAILED', d.message || 'Error'), 'error');
+								location.reload();
+							}
+						})
+						.catch(function(err) {
+							showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_FORM_FIELD_MOVE_FAILED', err.message), 'error');
+							location.reload();
+						});
+					}
+				});
+
+				formFieldSortables.push(instance);
+			});
+		});
+	}
+
+	// Initialize form field sortable after DOM ready
+	function initFormFields() {
+		if (document.querySelectorAll('.vb-form-field-onpage').length === 0) return;
+
+		if (typeof Sortable !== 'undefined') {
+			initFormFieldSortable();
+		} else {
+			var script = document.createElement('script');
+			script.src = 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js';
+			script.onload = function() {
+				initFormFieldSortable();
+			};
+			document.head.appendChild(script);
+		}
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', initFormFields);
+	} else {
+		initFormFields();
+	}
 })();

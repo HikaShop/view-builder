@@ -1,11 +1,12 @@
 .vb-wrapper {
-	position: relative;
 	outline: 1px dashed #4a90d9;
 	outline-offset: -1px;
 	margin: 2px 0;
 	min-height: 20px;
+	clear: both;
 }
 .vb-wrapper:hover {
+	position: relative;
 	outline: 2px solid #4a90d9;
 	outline-offset: -2px;
 	z-index: 100;
@@ -539,4 +540,194 @@
 }
 .vb-onpage-reset:hover {
 	background: rgba(255,255,255,0.35);
+}
+
+/* ========================================================================
+   Form Field Builder
+   ======================================================================== */
+
+/* Form override banner */
+.vb-form-override-banner {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	margin: 4px 0;
+	background: #f3e8f9;
+	border: 1px solid #9b59b6;
+	border-radius: 4px;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	font-size: 12px;
+}
+.vb-form-override-banner .vb-form-override-badge {
+	color: #6c3483;
+	font-weight: 600;
+}
+.vb-form-override-banner .vb-form-revert-btn {
+	margin-left: auto;
+	padding: 2px 8px;
+	font-size: 11px;
+	background: #9b59b6;
+	color: #fff;
+	border: none;
+	border-radius: 3px;
+	cursor: pointer;
+}
+.vb-form-override-banner .vb-form-revert-btn:hover {
+	background: #7d3c98;
+}
+
+/* On-page mode: field wrapper */
+.vb-form-field-onpage {
+	position: relative;
+	outline: 1px dashed #9b59b6;
+	outline-offset: -1px;
+	margin: 2px 0;
+	min-height: 20px;
+	transition: outline-color 0.2s;
+}
+.vb-form-field-onpage:hover {
+	outline: 2px solid #9b59b6;
+	outline-offset: -2px;
+	z-index: 100;
+}
+
+/* On-page: drag handle */
+.vb-form-field-handle {
+	display: none;
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: 1000;
+	background: #9b59b6;
+	color: #fff;
+	padding: 2px 8px;
+	cursor: grab;
+	font-size: 16px;
+	line-height: 1.2;
+	border-radius: 0 0 4px 0;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	user-select: none;
+}
+.vb-form-field-handle:active {
+	cursor: grabbing;
+}
+
+/* On-page: edit button */
+.vb-form-field-onpage > .vb-form-field-edit {
+	display: none;
+	position: absolute;
+	top: 0;
+	right: 0;
+	z-index: 1000;
+	background: #9b59b6;
+	color: #fff;
+	border: none;
+	padding: 2px 8px;
+	cursor: pointer;
+	font-size: 14px;
+	line-height: 1.4;
+	border-radius: 0 0 0 4px;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.vb-form-field-onpage > .vb-form-field-edit:hover {
+	filter: brightness(0.85);
+}
+
+/* On-page: delete button */
+.vb-form-field-delete {
+	display: none;
+	position: absolute;
+	top: 0;
+	right: 28px;
+	z-index: 1000;
+	background: #9b59b6;
+	color: #fff;
+	border: none;
+	padding: 2px 8px;
+	cursor: pointer;
+	font-size: 14px;
+	line-height: 1.4;
+	border-radius: 0;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.vb-form-field-delete:hover {
+	filter: brightness(0.85);
+}
+
+/* Show handle/edit/delete on hover */
+.vb-form-field-onpage:hover > .vb-form-field-handle,
+.vb-form-field-onpage:hover > .vb-form-field-edit,
+.vb-form-field-onpage:hover > .vb-form-field-delete {
+	display: block;
+}
+
+/* Ghost/drag states */
+.vb-form-field-ghost {
+	opacity: 0.4;
+	outline: 2px dashed #8e44ad;
+}
+.vb-form-field-drag {
+	box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+	z-index: 10000;
+}
+
+/* Dragging state: highlight all form fields */
+.vb-form-dragging .vb-form-field-onpage {
+	outline-style: solid !important;
+	outline-width: 2px !important;
+}
+
+/* Popup mode: field wrapper */
+.vb-form-field-popup {
+	position: relative;
+	outline: 1px dashed transparent;
+	outline-offset: -1px;
+	margin: 1px 0;
+	transition: outline-color 0.2s;
+}
+.vb-form-field-popup:hover {
+	outline: 1px dashed #9b59b6;
+	z-index: 100;
+}
+
+/* Popup mode: label */
+.vb-form-field-label {
+	display: none;
+	position: static;
+	z-index: 1000;
+	background: #9b59b6;
+	color: #fff;
+	font-size: 10px;
+	line-height: 1.4;
+	padding: 2px 6px;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	word-break: break-all;
+	border-radius: 0 0 4px 4px;
+	gap: 6px;
+	align-items: center;
+	pointer-events: auto;
+}
+.vb-form-field-popup:hover > .vb-form-field-label {
+	display: inline-flex;
+}
+.vb-form-field-label-text {
+	font-weight: 600;
+}
+.vb-form-field-actions {
+	display: inline-flex;
+	gap: 3px;
+}
+
+/* Form builder modal: fieldset label */
+.vb-form-fieldset-label {
+	font-weight: 700;
+	font-size: 13px;
+	color: #555;
+	padding: 12px 16px 4px;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	border-bottom: 1px solid #eee;
+	margin-bottom: 4px;
 }
