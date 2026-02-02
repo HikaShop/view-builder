@@ -121,22 +121,27 @@ When the Visual Builder detects these delimiters, it treats the entire section a
 
 The plugin utilizes a modern Joomla 5/6 architecture:
 
-- **Autoloader Interception**: Uses `ViewOverrideLoader` to hook into Joomla's view loading mechanism via `spl_autoload_register` with prepend priority, intercepting `Joomla\CMS\MVC\View\HtmlView` to override `loadTemplate()`.
-- **Event Driven**: Subscribes to system events like `onBeforeCompileHead` for asset injection and `onAjaxViewbuilder` for handling API requests.
+- **Autoloader Interception**: Uses `ViewOverrideLoader` and `FormFieldOverrideLoader` to hook into Joomla's loading mechanism via `spl_autoload_register`. This allows interception of `Joomla\CMS\MVC\View\HtmlView` (for views) and `Joomla\CMS\Form\FormField` (for forms).
+- **Event Driven**: Subscribes to system events like `onContentPrepareForm` (for form interception), `onBeforeCompileHead` (for assets), and `onAjaxViewbuilder` (for API requests).
 - **Web Asset Manager**: Standard Joomla Web Asset Manager for loading CSS/JS resources.
-- **Override Injection**: In on-page mode, `OverrideInjector` uses `ViewParser` to detect blocks and injects `@block`/`@endblock` delimiters into auto-created override files.
+- **Override Injection**: 
+  - **Views**: `OverrideInjector` uses `ViewParser` to inject delimiters into auto-created view overrides.
+  - **Forms**: `FormBuilderHelper` manipulates `Joomla\CMS\Form\Form` objects at runtime to apply XML overrides.
 
 ### File Structure
 
-- `src/Extension/ViewBuilderPlugin.php`: Main entry point handling events and AJAX tasks (load, save, parse, revert, load_block, save_block, move_block).
-- `src/Autoload/ViewOverrideLoader.php`: Autoloader that intercepts and replaces Joomla's `HtmlView` class.
-- `src/View/HtmlView.php`: Replacement `HtmlView` that overrides `loadTemplate()` to wrap output with builder UI.
-- `src/Service/ViewBuilderHelper.php`: Static helper for wrapping output (popup mode and on-page mode), computing override paths, and managing mode state.
-- `src/Service/ViewParser.php`: Parses view files into blocks (delimiter-based and auto-detected).
-- `src/Service/OverrideInjector.php`: Creates override files with `@block`/`@endblock` delimiters injected around detected blocks.
-- `media/css/wrapper.css`: Styles for both popup and on-page modes.
-- `media/js/wrapper.js`: Frontend JavaScript for modals, SortableJS drag-and-drop, and AJAX operations.
-- `viewbuilder.xml`: Manifest file defining the extension.
+- `src/Extension/ViewBuilderPlugin.php`: Main entry point handling events and AJAX tasks.
+- `src/Autoload/ViewOverrideLoader.php`: Autoloader that intercepts `HtmlView`.
+- `src/Autoload/FormFieldOverrideLoader.php`: Autoloader that intercepts `FormField`.
+- `src/View/HtmlView.php`: Replacement `HtmlView` that wraps output with builder UI.
+- `src/Form/FormField.php`: Replacement `FormField` that wraps field input with drag handles/edit buttons.
+- `src/Service/ViewBuilderHelper.php`: Helper for wrapping view output and managing view overrides.
+- `src/Service/FormBuilderHelper.php`: Helper for wrapping form fields, snapshotting XML, and applying form overrides.
+- `src/Service/ViewParser.php`: Parses view files into blocks.
+- `src/Service/OverrideInjector.php`: Creates view override files with delimiters.
+- `media/css/wrapper.css`: Styles for builder interface.
+- `media/js/wrapper.js`: Frontend JavaScript for modals, SortableJS drag-and-drop, and AJAX.
+- `viewbuilder.xml`: Manifest file.
 
 ## Requirements
 
