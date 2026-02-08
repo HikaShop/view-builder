@@ -27,7 +27,7 @@ class ViewOverrideLoader
 
 	public function loadClass(string $className): bool
 	{
-		if ($className !== 'Joomla\\CMS\\MVC\\View\\HtmlView') {
+		if ($className !== 'Joomla\CMS\MVC\View\HtmlView') {
 			return false;
 		}
 

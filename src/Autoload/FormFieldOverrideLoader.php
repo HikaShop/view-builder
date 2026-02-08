@@ -27,7 +27,7 @@ class FormFieldOverrideLoader
 
 	public function loadClass(string $className): bool
 	{
-		if ($className !== 'Joomla\\CMS\\Form\\FormField') {
+		if ($className !== 'Joomla\CMS\Form\FormField') {
 			return false;
 		}
 

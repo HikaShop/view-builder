@@ -28,7 +28,7 @@ class OverrideInjector
 	{
 		if (file_exists($overridePath)) {
 			$content = file_get_contents($overridePath);
-			if (strpos($content, '<!-- @block:') !== false) {
+			if (strpos($content, '<!-- @block:') !== false || strpos($content, '/* @block:') !== false) {
 				// Already has delimiters — ensure the marker is present.
 				// For pre-existing auto-generated overrides (before marker was introduced),
 				// regenerate and compare to detect if the override is still unmodified.
@@ -79,6 +79,7 @@ class OverrideInjector
 
 	/**
 	 * Parse the file content and inject @block/@endblock delimiters around movable blocks.
+	 * Uses PHP comments (/ * * /) when inside PHP code, and HTML comments (<!-- -->) otherwise.
 	 */
 	private function injectDelimiters(string $content): string
 	{
@@ -143,6 +144,9 @@ class OverrideInjector
 		// Reverse back to descending order
 		$movable = array_reverse($movableAsc);
 
+		// Pre-compute PHP context for each line
+		$phpContextAtLine = $this->computePhpContext($lines);
+
 		foreach ($movable as $block) {
 			$name = $block['unique_name'];
 			$startIdx = $block['line_start'] - 1;
@@ -154,13 +158,93 @@ class OverrideInjector
 				$indent = $m[1];
 			}
 
+			// Check if we're inside PHP at the insertion points
+			$inPhpAtStart = isset($phpContextAtLine[$startIdx]) && $phpContextAtLine[$startIdx];
+			$inPhpAtEnd = isset($phpContextAtLine[$endIdx]) && $phpContextAtLine[$endIdx];
+
+			// Use appropriate comment syntax
+			if ($inPhpAtEnd) {
+				$endComment = $indent . '/* @endblock:' . $name . ' */';
+			} else {
+				$endComment = $indent . '<!-- @endblock:' . $name . ' -->';
+			}
+
+			if ($inPhpAtStart) {
+				$startComment = $indent . '/* @block:' . $name . ' */';
+			} else {
+				$startComment = $indent . '<!-- @block:' . $name . ' -->';
+			}
+
 			// Insert endblock after the block's last line
-			array_splice($lines, $endIdx + 1, 0, [$indent . '<!-- @endblock:' . $name . ' -->']);
+			array_splice($lines, $endIdx + 1, 0, [$endComment]);
 			// Insert block before the block's first line
-			array_splice($lines, $startIdx, 0, [$indent . '<!-- @block:' . $name . ' -->']);
+			array_splice($lines, $startIdx, 0, [$startComment]);
+
+			// After inserting 2 lines, we need to update phpContextAtLine for subsequent blocks
+			// But since we're processing in descending order, earlier indices are not affected
 		}
 
 		return implode("\n", $lines);
+	}
+
+	/**
+	 * Compute whether each line is inside a PHP code block.
+	 * Returns an array indexed by line number (0-based) with boolean values.
+	 */
+	private function computePhpContext(array $lines): array
+	{
+		$inPhp = false;
+		$result = [];
+
+		foreach ($lines as $idx => $line) {
+			// Count PHP opens and closes on this line
+			$opens = preg_match_all('/<\?php\b|<\?=/', $line);
+			$closes = preg_match_all('/\?>/', $line);
+
+			// Determine state at the START of this line
+			$atStart = $inPhp;
+
+			// Process opens and closes in order to determine state at END of line
+			// Simple approach: just track net change
+			// Note: A line like "< ?php ... ? >" opens and closes, so ends outside PHP
+			// A line like "? >< ?php" closes then opens, so ends inside PHP
+
+			// More accurate: scan for positions
+			$positions = [];
+			if (preg_match_all('/<\?php\b|<\?=/', $line, $m, PREG_OFFSET_CAPTURE)) {
+				foreach ($m[0] as $match) {
+					$positions[] = ['type' => 'open', 'pos' => $match[1]];
+				}
+			}
+			if (preg_match_all('/\?>/', $line, $m, PREG_OFFSET_CAPTURE)) {
+				foreach ($m[0] as $match) {
+					$positions[] = ['type' => 'close', 'pos' => $match[1]];
+				}
+			}
+
+			// Sort by position
+			usort($positions, function($a, $b) {
+				return $a['pos'] - $b['pos'];
+			});
+
+			// Process in order
+			$currentState = $inPhp;
+			foreach ($positions as $p) {
+				if ($p['type'] === 'open') {
+					$currentState = true;
+				} else {
+					$currentState = false;
+				}
+			}
+
+			$inPhp = $currentState;
+
+			// The state "at this line" for insertion purposes is the state at the START of the line
+			// (because we insert BEFORE the line)
+			$result[$idx] = $atStart;
+		}
+
+		return $result;
 	}
 
 	/**
