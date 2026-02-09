@@ -5,6 +5,17 @@ All notable changes to the "View Builder" Joomla plugin will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - TBA
+
+### Added
+- **Joomla 4+ Child Template Support**: The plugin now correctly recognizes and uses template overrides from parent templates when using Joomla's child template system.
+
+### Changed
+- Updated `ViewBuilderHelper::getOverridePath()` to check both child and parent template folders for existing overrides.
+- Updated `ViewBuilderPlugin::getOverridePath()` with the same parent template fallback logic.
+- Updated `FormBuilderHelper::getFormOverridePath()` to support form XML overrides in parent templates.
+- Added new `ViewBuilderHelper::getParentTemplate()` method to detect child template parent from `templateDetails.xml`.
+
 ## [1.2.1] - 2026-02-08
 
 ### Fixed

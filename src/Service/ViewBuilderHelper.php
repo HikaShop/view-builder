@@ -73,6 +73,12 @@ class ViewBuilderHelper
 			return $originalFile;
 		}
 
+		// For Joomla 4+ child templates, also check the parent template
+		$parentTemplate = self::getParentTemplate();
+		if (!empty($parentTemplate) && strpos($filePath, '/templates/' . $parentTemplate . '/html/') !== false) {
+			return $originalFile;
+		}
+
 		if (preg_match('#/components/(com_\\w+)/tmpl/(\\w+)/(.+\\.php)$#', $filePath, $matches)) {
 			$component = $matches[1]; $viewName = $matches[2]; $fileName = $matches[3];
 		} elseif (preg_match('#/components/(com_\\w+)/views?/(\\w+)/tmpl/(.+\\.php)$#', $filePath, $matches)) {
@@ -88,10 +94,72 @@ class ViewBuilderHelper
 		$isAdmin = (strpos($filePath, '/administrator/') !== false);
 		$themesPath = $isAdmin ? (JPATH_ADMINISTRATOR . '/templates') : (JPATH_SITE . '/templates');
 
+		// Build the override path and check if it exists in child or parent template
 		if ($viewName) {
-			return $themesPath . '/' . $template . '/html/' . $component . '/' . $viewName . '/' . $fileName;
+			$childPath = $themesPath . '/' . $template . '/html/' . $component . '/' . $viewName . '/' . $fileName;
+			// If override exists in child template, use it
+			if (file_exists($childPath)) {
+				return $childPath;
+			}
+			// Check parent template if available
+			if (!empty($parentTemplate)) {
+				$parentPath = $themesPath . '/' . $parentTemplate . '/html/' . $component . '/' . $viewName . '/' . $fileName;
+				if (file_exists($parentPath)) {
+					return $parentPath;
+				}
+			}
+			// Return child path as target for new overrides
+			return $childPath;
 		}
-		return $themesPath . '/' . $template . '/html/' . $component . '/' . $fileName;
+
+		$childPath = $themesPath . '/' . $template . '/html/' . $component . '/' . $fileName;
+		if (file_exists($childPath)) {
+			return $childPath;
+		}
+		if (!empty($parentTemplate)) {
+			$parentPath = $themesPath . '/' . $parentTemplate . '/html/' . $component . '/' . $fileName;
+			if (file_exists($parentPath)) {
+				return $parentPath;
+			}
+		}
+		return $childPath;
+	}
+
+	/**
+	 * Get the parent template name for Joomla 4+ child templates.
+	 *
+	 * @return string|null The parent template name, or null if not a child template
+	 */
+	public static function getParentTemplate(): ?string
+	{
+		static $parentTemplate = null;
+		static $checked = false;
+
+		if ($checked) {
+			return $parentTemplate;
+		}
+		$checked = true;
+
+		$app = Factory::getApplication();
+		$template = $app->getTemplate();
+
+		// Check if the template has a parent defined in templateDetails.xml
+		$xmlPath = JPATH_THEMES . '/' . $template . '/templateDetails.xml';
+		if (!file_exists($xmlPath)) {
+			return null;
+		}
+
+		$xml = simplexml_load_file($xmlPath);
+		if (!$xml) {
+			return null;
+		}
+
+		// Joomla 4+ child templates have a <parent> element
+		if (isset($xml->parent) && !empty((string) $xml->parent)) {
+			$parentTemplate = (string) $xml->parent;
+		}
+
+		return $parentTemplate;
 	}
 
 	public static function wrap(string $output, string $component, string $viewName, string $filename, ?string $templateFile): string

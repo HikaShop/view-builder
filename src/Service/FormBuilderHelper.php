@@ -200,6 +200,7 @@ class FormBuilderHelper
 	/**
 	 * Get the override XML path for a form name.
 	 * Maps "com_users.profile" → templates/{template}/html/com_users/forms/profile.xml
+	 * For child templates, also checks parent template for existing overrides.
 	 */
 	public static function getFormOverridePath(string $formName): ?string
 	{
@@ -221,7 +222,24 @@ class FormBuilderHelper
 		$isAdmin = $app->isClient('administrator');
 		$themesPath = $isAdmin ? (JPATH_ADMINISTRATOR . '/templates') : (JPATH_SITE . '/templates');
 
-		return $themesPath . '/' . $template . '/html/' . $component . '/forms/' . $fileName . '.xml';
+		$childPath = $themesPath . '/' . $template . '/html/' . $component . '/forms/' . $fileName . '.xml';
+
+		// If override exists in child template, use it
+		if (file_exists($childPath)) {
+			return $childPath;
+		}
+
+		// For Joomla 4+ child templates, check parent template
+		$parentTemplate = ViewBuilderHelper::getParentTemplate();
+		if (!empty($parentTemplate)) {
+			$parentPath = $themesPath . '/' . $parentTemplate . '/html/' . $component . '/forms/' . $fileName . '.xml';
+			if (file_exists($parentPath)) {
+				return $parentPath;
+			}
+		}
+
+		// Return child path as target for new overrides
+		return $childPath;
 	}
 
 	/**

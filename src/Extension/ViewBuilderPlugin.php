@@ -1487,6 +1487,12 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 			return $filePath;
 		}
 
+		// For Joomla 4+ child templates, also check the parent template
+		$parentTemplate = ViewBuilderHelper::getParentTemplate();
+		if (!empty($parentTemplate) && strpos($filePath, '/templates/' . $parentTemplate . '/html/') !== false) {
+			return $filePath;
+		}
+
 		// Determine component and view from path
 		// Pattern: .../components/com_xxx/tmpl/viewname/file.php (Joomla 5/6)
 		// Or: .../components/com_xxx/views/viewname/tmpl/file.php (legacy)
@@ -1513,11 +1519,35 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 		$isAdmin = (strpos($filePath, '/administrator/') !== false);
 		$themesPath = $isAdmin ? (JPATH_ADMINISTRATOR . '/templates') : (JPATH_SITE . '/templates');
 
+		// Build the override path and check if it exists in child or parent template
 		if ($viewName) {
-			return $themesPath . '/' . $template . '/html/' . $component . '/' . $viewName . '/' . $fileName;
+			$childPath = $themesPath . '/' . $template . '/html/' . $component . '/' . $viewName . '/' . $fileName;
+			// If override exists in child template, use it
+			if (file_exists($childPath)) {
+				return $childPath;
+			}
+			// Check parent template if available
+			if (!empty($parentTemplate)) {
+				$parentPath = $themesPath . '/' . $parentTemplate . '/html/' . $component . '/' . $viewName . '/' . $fileName;
+				if (file_exists($parentPath)) {
+					return $parentPath;
+				}
+			}
+			// Return child path as target for new overrides
+			return $childPath;
 		}
 
-		return $themesPath . '/' . $template . '/html/' . $component . '/' . $fileName;
+		$childPath = $themesPath . '/' . $template . '/html/' . $component . '/' . $fileName;
+		if (file_exists($childPath)) {
+			return $childPath;
+		}
+		if (!empty($parentTemplate)) {
+			$parentPath = $themesPath . '/' . $parentTemplate . '/html/' . $component . '/' . $fileName;
+			if (file_exists($parentPath)) {
+				return $parentPath;
+			}
+		}
+		return $childPath;
 	}
 
 	private function isActive(): bool
