@@ -1614,4 +1614,438 @@
 	} else {
 		initFormFields();
 	}
+
+	// ========================================================================
+	// Translation Editor
+	// ========================================================================
+
+	var transEditorConfig = null;
+	var transAjaxBase = '';
+
+	function initTranslationEditor() {
+		var config = Joomla.getOptions('viewbuilder.translationEditor');
+		if (!config || !config.enabled) return;
+
+		transEditorConfig = config;
+
+		var translationsMap = Joomla.getOptions('viewbuilder.translations');
+		if (!translationsMap || Object.keys(translationsMap).length === 0) return;
+
+		// Build the AJAX base URL
+		var token = Joomla.getOptions('csrf.token') || '';
+		transAjaxBase = 'index.php?option=com_ajax&plugin=viewbuilder&group=system&format=json&' + token + '=1';
+
+		// Walk DOM text nodes and wrap matches
+		var skipTags = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, CODE: 1, PRE: 1, INPUT: 1, SELECT: 1, OPTION: 1 };
+		var skipClasses = ['vb-label', 'vb-modal', 'vb-modal-overlay', 'vb-translation-popup',
+			'vb-trans-modal', 'vb-onpage-handle', 'vb-onpage-edit', 'vb-onpage-delete',
+			'vb-form-field-label', 'vb-form-field-handle', 'vb-translation-edit-btn'];
+
+		var walker = document.createTreeWalker(
+			document.body,
+			NodeFilter.SHOW_TEXT,
+			{
+				acceptNode: function(node) {
+					var parent = node.parentNode;
+					if (!parent || !parent.tagName) return NodeFilter.FILTER_REJECT;
+					if (skipTags[parent.tagName]) return NodeFilter.FILTER_REJECT;
+
+					// Skip VB UI elements
+					var el = parent;
+					while (el && el !== document.body) {
+						if (el.classList) {
+							for (var i = 0; i < skipClasses.length; i++) {
+								if (el.classList.contains(skipClasses[i])) return NodeFilter.FILTER_REJECT;
+							}
+						}
+						el = el.parentNode;
+					}
+
+					// Already wrapped
+					if (parent.classList && parent.classList.contains('vb-translatable')) {
+						return NodeFilter.FILTER_REJECT;
+					}
+
+					var text = node.textContent.trim();
+					if (text.length < 2) return NodeFilter.FILTER_REJECT;
+
+					return NodeFilter.FILTER_ACCEPT;
+				}
+			}
+		);
+
+		var textNodes = [];
+		while (walker.nextNode()) {
+			textNodes.push(walker.currentNode);
+		}
+
+		textNodes.forEach(function(node) {
+			var text = node.textContent.trim();
+			var normalized = text.toLowerCase();
+
+			if (translationsMap[normalized]) {
+				var keys = translationsMap[normalized];
+				var wrap = document.createElement('vb-t');
+				wrap.className = 'vb-translatable';
+				wrap.setAttribute('data-vb-trans-keys', keys.join(','));
+				node.parentNode.insertBefore(wrap, node);
+				wrap.appendChild(node);
+			}
+		});
+
+		// Delegated hover behavior
+		document.body.addEventListener('mouseenter', function(e) {
+			var el = e.target;
+			if (!el.classList || !el.classList.contains('vb-translatable')) return;
+			if (el.querySelector('.vb-translation-edit-btn')) return;
+
+			var btn = document.createElement('button');
+			btn.className = 'vb-translation-edit-btn';
+			btn.type = 'button';
+			btn.innerHTML = '&#9998;';
+			btn.title = 'Edit translation';
+			btn.addEventListener('click', function(ev) {
+				ev.preventDefault();
+				ev.stopPropagation();
+				var keys = el.getAttribute('data-vb-trans-keys').split(',');
+				openTranslationEditor(keys, el);
+			});
+			el.appendChild(btn);
+		}, true);
+
+		document.body.addEventListener('mouseleave', function(e) {
+			var el = e.target;
+			if (!el.classList || !el.classList.contains('vb-translatable')) return;
+			var btn = el.querySelector('.vb-translation-edit-btn');
+			if (btn) btn.remove();
+		}, true);
+	}
+
+	function openTranslationEditor(keys, element) {
+		if (keys.length > 1) {
+			// Show key picker
+			showKeyPicker(keys, element);
+		} else {
+			loadAndShowTranslation(keys[0], element);
+		}
+	}
+
+	function showKeyPicker(keys, element) {
+		closeModal();
+
+		var overlay = document.createElement('div');
+		overlay.className = 'vb-modal-overlay';
+		overlay.addEventListener('click', function(e) {
+			if (e.target === overlay) closeModal();
+		});
+
+		var modal = document.createElement('div');
+		modal.className = 'vb-modal vb-trans-modal vb-trans-key-picker';
+
+		var header = document.createElement('div');
+		header.className = 'vb-modal-header';
+		header.innerHTML = '<div class="vb-modal-title">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_TRANS_PICK_KEY')) + '</div>' +
+			'<div class="vb-modal-actions"><button type="button" class="vb-close-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_CLOSE')) + '</button></div>';
+
+		var body = document.createElement('div');
+		body.className = 'vb-modal-body';
+		body.style.overflow = 'auto';
+		body.style.padding = '16px';
+
+		keys.forEach(function(key) {
+			var btn = document.createElement('button');
+			btn.type = 'button';
+			btn.className = 'vb-trans-key-option';
+			btn.textContent = key;
+			btn.addEventListener('click', function() {
+				closeModal();
+				loadAndShowTranslation(key, element);
+			});
+			body.appendChild(btn);
+		});
+
+		modal.appendChild(header);
+		modal.appendChild(body);
+		overlay.appendChild(modal);
+		document.body.appendChild(overlay);
+		currentModal = overlay;
+
+		header.querySelector('.vb-close-btn').addEventListener('click', closeModal);
+		document.addEventListener('keydown', escHandler);
+	}
+
+	function loadAndShowTranslation(key, element) {
+		closeModal();
+
+		// Show loading overlay
+		var overlay = document.createElement('div');
+		overlay.className = 'vb-modal-overlay';
+		overlay.addEventListener('click', function(e) {
+			if (e.target === overlay) closeModal();
+		});
+
+		var modal = document.createElement('div');
+		modal.className = 'vb-modal vb-trans-modal';
+
+		var header = document.createElement('div');
+		header.className = 'vb-modal-header';
+		header.innerHTML = '<div class="vb-modal-title">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_TRANS_LOADING')) + '</div>' +
+			'<div class="vb-modal-actions"><button type="button" class="vb-close-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_CLOSE')) + '</button></div>';
+
+		modal.appendChild(header);
+		overlay.appendChild(modal);
+		document.body.appendChild(overlay);
+		currentModal = overlay;
+
+		header.querySelector('.vb-close-btn').addEventListener('click', closeModal);
+		document.addEventListener('keydown', escHandler);
+
+		var clientId = transEditorConfig.clientId || 0;
+		fetch(transAjaxBase + '&task=load_translation&key=' + encodeURIComponent(key) + '&client_id=' + clientId)
+			.then(function(r) { return r.json(); })
+			.then(function(resp) {
+				var data = unwrapResponse(resp);
+				if (!data.success) {
+					alert(t('PLG_SYSTEM_VIEWBUILDER_JS_ERROR', data.message || 'Unknown error'));
+					closeModal();
+					return;
+				}
+				showTranslationModal(data, key, element);
+			})
+			.catch(function(err) {
+				alert(t('PLG_SYSTEM_VIEWBUILDER_JS_ERROR', err.message));
+				closeModal();
+			});
+	}
+
+	function showTranslationModal(data, key, element) {
+		closeModal();
+
+		var overlay = document.createElement('div');
+		overlay.className = 'vb-modal-overlay';
+		overlay.addEventListener('click', function(e) {
+			if (e.target === overlay) closeModal();
+		});
+
+		var modal = document.createElement('div');
+		modal.className = 'vb-modal vb-trans-modal';
+
+		var header = document.createElement('div');
+		header.className = 'vb-modal-header';
+		header.innerHTML = '<div class="vb-modal-title">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_TRANS_EDIT_TITLE', key)) + '</div>' +
+			'<div class="vb-modal-actions">' +
+			'<button type="button" class="vb-save-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_TRANS_SAVE')) + '</button>' +
+			'<button type="button" class="vb-close-btn">' + escapeHtml(t('PLG_SYSTEM_VIEWBUILDER_JS_CLOSE')) + '</button>' +
+			'</div>';
+
+		var body = document.createElement('div');
+		body.className = 'vb-modal-body';
+		body.style.overflow = 'auto';
+		body.style.padding = '16px';
+
+		var keyDisplay = document.createElement('div');
+		keyDisplay.className = 'vb-trans-key';
+		keyDisplay.textContent = key;
+		body.appendChild(keyDisplay);
+
+		var languages = data.languages || [];
+		languages.forEach(function(lang) {
+			var row = document.createElement('div');
+			row.className = 'vb-trans-lang-row';
+			row.dataset.tag = lang.tag;
+
+			var label = document.createElement('div');
+			label.className = 'vb-trans-lang-label';
+			label.textContent = lang.name + ' (' + lang.tag + ')';
+
+			var input = document.createElement('input');
+			input.type = 'text';
+			input.className = 'vb-trans-lang-input';
+			input.value = lang.value;
+			input.dataset.tag = lang.tag;
+			input.dataset.originalValue = lang.value;
+			input.dataset.baseValue = lang.base_value;
+
+			var badge = document.createElement('b');
+			badge.className = 'vb-trans-lang-badge ' + (lang.is_override ? 'vb-trans-lang-badge-override' : 'vb-trans-lang-badge-original');
+			badge.textContent = lang.is_override
+				? t('PLG_SYSTEM_VIEWBUILDER_JS_TRANS_OVERRIDE')
+				: t('PLG_SYSTEM_VIEWBUILDER_JS_TRANS_ORIGINAL');
+
+			row.appendChild(label);
+			row.appendChild(input);
+			row.appendChild(badge);
+
+			// Add remove override button if this language has an override
+			if (lang.is_override) {
+				var removeBtn = document.createElement('button');
+				removeBtn.type = 'button';
+				removeBtn.className = 'vb-trans-remove-btn';
+				removeBtn.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_TRANS_REMOVE_OVERRIDE');
+				removeBtn.dataset.tag = lang.tag;
+				removeBtn.addEventListener('click', function() {
+					removeTranslationOverride(key, lang.tag, input, badge, removeBtn, status, element);
+				});
+				row.appendChild(removeBtn);
+			}
+
+			body.appendChild(row);
+		});
+
+		var status = document.createElement('div');
+		status.className = 'vb-modal-status';
+		status.textContent = '';
+
+		modal.appendChild(header);
+		modal.appendChild(body);
+		modal.appendChild(status);
+		overlay.appendChild(modal);
+		document.body.appendChild(overlay);
+		currentModal = overlay;
+
+		var saveBtn = header.querySelector('.vb-save-btn');
+		var closeBtn = header.querySelector('.vb-close-btn');
+
+		saveBtn.addEventListener('click', function() {
+			var inputs = body.querySelectorAll('.vb-trans-lang-input');
+			var translations = {};
+			var hasChanges = false;
+
+			inputs.forEach(function(inp) {
+				if (inp.value !== inp.dataset.originalValue) {
+					translations[inp.dataset.tag] = inp.value;
+					hasChanges = true;
+				}
+			});
+
+			if (!hasChanges) {
+				status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_NO_CHANGES');
+				return;
+			}
+
+			status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_TRANS_SAVING');
+			saveBtn.disabled = true;
+
+			var formData = new FormData();
+			formData.append('key', key);
+			formData.append('client_id', transEditorConfig.clientId || 0);
+			Object.keys(translations).forEach(function(tag) {
+				formData.append('translations[' + tag + ']', translations[tag]);
+			});
+
+			fetch(transAjaxBase + '&task=save_translation', {
+				method: 'POST',
+				body: formData
+			})
+			.then(function(r) { return r.json(); })
+			.then(function(resp) {
+				var d = unwrapResponse(resp);
+				if (d.success) {
+					status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_TRANS_SAVED');
+					status.style.color = '';
+					saveBtn.disabled = false;
+
+					// Update DOM text if current language was changed
+					var currentLang = transEditorConfig.currentLang;
+					if (translations[currentLang] !== undefined) {
+						// Update the text node inside the element
+						var textNodes = [];
+						var tw = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+						while (tw.nextNode()) textNodes.push(tw.currentNode);
+						if (textNodes.length > 0) {
+							textNodes[0].textContent = translations[currentLang];
+						}
+					}
+
+					// Update badges
+					inputs.forEach(function(inp) {
+						if (inp.value !== inp.dataset.originalValue) {
+							inp.dataset.originalValue = inp.value;
+							var badge = inp.parentNode.querySelector('.vb-trans-lang-badge');
+							if (badge) {
+								badge.className = 'vb-trans-lang-badge vb-trans-lang-badge-override';
+								badge.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_TRANS_OVERRIDE');
+							}
+						}
+					});
+
+					showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_TRANS_SAVED'), 'success');
+				} else {
+					status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_TRANS_SAVE_FAILED', d.message || 'Unknown error');
+					status.style.color = '#d9534f';
+					saveBtn.disabled = false;
+				}
+			})
+			.catch(function(err) {
+				status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_TRANS_SAVE_FAILED', err.message);
+				status.style.color = '#d9534f';
+				saveBtn.disabled = false;
+			});
+		});
+
+		closeBtn.addEventListener('click', closeModal);
+		document.addEventListener('keydown', escHandler);
+	}
+
+	function removeTranslationOverride(key, tag, input, badge, removeBtn, status, element) {
+		status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_TRANS_REMOVING');
+		removeBtn.disabled = true;
+
+		var formData = new FormData();
+		formData.append('key', key);
+		formData.append('tag', tag);
+		formData.append('client_id', transEditorConfig.clientId || 0);
+
+		fetch(transAjaxBase + '&task=remove_translation_override', {
+			method: 'POST',
+			body: formData
+		})
+		.then(function(r) { return r.json(); })
+		.then(function(resp) {
+			var d = unwrapResponse(resp);
+			if (d.success) {
+				status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_TRANS_OVERRIDE_REMOVED');
+				status.style.color = '';
+				// Restore base value
+				input.value = d.base_value || '';
+				input.dataset.originalValue = d.base_value || '';
+				input.dataset.baseValue = d.base_value || '';
+				// Update badge to Original
+				badge.className = 'vb-trans-lang-badge vb-trans-lang-badge-original';
+				badge.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_TRANS_ORIGINAL');
+				// Remove the remove button
+				removeBtn.remove();
+				// Update DOM text if current language
+				var currentLang = transEditorConfig.currentLang;
+				if (tag === currentLang && d.base_value) {
+					var textNodes = [];
+					var tw = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+					while (tw.nextNode()) textNodes.push(tw.currentNode);
+					if (textNodes.length > 0) {
+						textNodes[0].textContent = d.base_value;
+					}
+				}
+				showOnPageNotification(t('PLG_SYSTEM_VIEWBUILDER_JS_TRANS_OVERRIDE_REMOVED'), 'success');
+			} else {
+				status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_TRANS_SAVE_FAILED', d.message || 'Error');
+				status.style.color = '#d9534f';
+				removeBtn.disabled = false;
+			}
+		})
+		.catch(function(err) {
+			status.textContent = t('PLG_SYSTEM_VIEWBUILDER_JS_TRANS_SAVE_FAILED', err.message);
+			status.style.color = '#d9534f';
+			removeBtn.disabled = false;
+		});
+	}
+
+	// Initialize translation editor after DOM ready
+	function initTransEditor() {
+		if (document.readyState === 'loading') {
+			document.addEventListener('DOMContentLoaded', initTranslationEditor);
+		} else {
+			initTranslationEditor();
+		}
+	}
+	initTransEditor();
 })();

@@ -94,7 +94,7 @@
 	background: rgba(255,255,255,0.35);
 }
 
-/* Editor modal */
+/* Editor modal — force light-mode colors so dark-mode themes don't bleed in */
 .vb-modal-overlay {
 	position: fixed;
 	inset: 0;
@@ -103,9 +103,11 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	color-scheme: light;
 }
 .vb-modal {
 	background: #fff;
+	color: #333;
 	border-radius: 8px;
 	width: 90vw;
 	height: 90vh;
@@ -115,18 +117,33 @@
 	box-shadow: 0 10px 40px rgba(0,0,0,0.3);
 	overflow: hidden;
 }
+/* Reset inherited dark-mode styles on all modal descendants */
+.vb-modal *,
+.vb-modal *::before,
+.vb-modal *::after {
+	color-scheme: light;
+}
+/* Neutralize Joomla backend span styling inside our modals */
+.vb-modal span,
+.vb-modal b {
+	text-align: inherit;
+	width: auto;
+	margin-inline-end: 0;
+}
 .vb-modal-header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	padding: 12px 16px;
 	background: #f5f5f5;
+	color: #333;
 	border-bottom: 1px solid #ddd;
 	gap: 12px;
 }
 .vb-modal-title {
 	font-weight: 600;
 	font-size: 14px;
+	color: #333;
 	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 	white-space: nowrap;
 	overflow: hidden;
@@ -146,6 +163,7 @@
 	font-size: 13px;
 	font-family: inherit;
 	background: #fff;
+	color: #333;
 }
 .vb-modal-actions button.vb-save-btn {
 	background: #4a90d9;
@@ -172,6 +190,8 @@
 	flex: 1;
 	overflow: hidden;
 	position: relative;
+	background: #fff;
+	color: #333;
 }
 .vb-modal-body textarea {
 	width: 100%;
@@ -184,6 +204,8 @@
 	resize: none;
 	tab-size: 4;
 	outline: none;
+	background: #fff;
+	color: #333;
 }
 .vb-modal-status {
 	padding: 6px 16px;
@@ -215,6 +237,7 @@
 	gap: 10px;
 	padding: 10px 14px;
 	background: #f8f9fa;
+	color: #333;
 	border: 1px solid #dee2e6;
 	border-radius: 6px;
 	cursor: default;
@@ -717,6 +740,152 @@
 .vb-form-field-actions {
 	display: inline-flex;
 	gap: 3px;
+}
+
+/* ========================================================================
+   Translation Editor
+   ======================================================================== */
+
+vb-t {
+	display: inline;
+}
+.vb-translatable {
+	position: relative;
+	cursor: default;
+	transition: background 0.2s;
+	border-radius: 2px;
+}
+.vb-translatable:hover {
+	background: rgba(241, 196, 15, 0.15);
+}
+.vb-translation-edit-btn {
+	position: absolute;
+	top: -2px;
+	right: -2px;
+	z-index: 1000;
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	background: #f1c40f;
+	color: #333;
+	border: 1px solid #e0b20d;
+	cursor: pointer;
+	font-size: 12px;
+	line-height: 20px;
+	text-align: center;
+	padding: 0;
+	box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.vb-translation-edit-btn:hover {
+	background: #e0b20d;
+}
+.vb-trans-modal {
+	max-width: 700px;
+	height: auto;
+	max-height: 80vh;
+}
+.vb-trans-key-picker {
+	max-width: 500px;
+}
+.vb-trans-key {
+	font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+	font-size: 13px;
+	background: #f5f5f5;
+	color: #333;
+	padding: 8px 12px;
+	border-radius: 4px;
+	margin-bottom: 16px;
+	border: 1px solid #ddd;
+	word-break: break-all;
+}
+.vb-trans-lang-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 0;
+	border-bottom: 1px solid #f0f0f0;
+}
+.vb-trans-lang-row:last-child {
+	border-bottom: none;
+}
+.vb-trans-lang-label {
+	width: 180px;
+	flex-shrink: 0;
+	font-size: 13px;
+	font-weight: 500;
+	color: #333;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.vb-trans-lang-input {
+	flex: 1;
+	padding: 6px 10px;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	font-size: 13px;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	outline: none;
+	background: #fff;
+	color: #333;
+}
+.vb-trans-lang-input:focus {
+	border-color: #4a90d9;
+	box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
+}
+.vb-trans-lang-badge {
+	font-size: 10px;
+	padding: 2px 8px;
+	border-radius: 10px;
+	flex-shrink: 0;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	font-weight: 600;
+	font-style: normal;
+}
+.vb-trans-lang-badge-override {
+	background: #d4edda;
+	color: #155724;
+}
+.vb-trans-lang-badge-original {
+	background: #e2e6ea;
+	color: #555;
+}
+.vb-trans-remove-btn {
+	padding: 3px 10px;
+	font-size: 11px;
+	background: #d9534f;
+	color: #fff;
+	border: none;
+	border-radius: 3px;
+	cursor: pointer;
+	flex-shrink: 0;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.vb-trans-remove-btn:hover {
+	background: #c9302c;
+}
+.vb-trans-remove-btn:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+.vb-trans-key-option {
+	display: block;
+	width: 100%;
+	text-align: left;
+	padding: 10px 14px;
+	margin-bottom: 6px;
+	background: #f8f9fa;
+	color: #333;
+	border: 1px solid #dee2e6;
+	border-radius: 6px;
+	cursor: pointer;
+	font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+	font-size: 13px;
+	transition: background 0.15s;
+}
+.vb-trans-key-option:hover {
+	background: #e9ecef;
 }
 
 /* Form builder modal: fieldset label */

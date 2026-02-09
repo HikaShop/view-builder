@@ -19,8 +19,10 @@ use Joomla\CMS\Plugin\CMSPlugin;
 use Joomla\CMS\Session\Session;
 use Joomla\Event\SubscriberInterface;
 use Joomla\Plugin\System\ViewBuilder\Autoload\FormFieldOverrideLoader;
+use Joomla\Plugin\System\ViewBuilder\Autoload\TextOverrideLoader;
 use Joomla\Plugin\System\ViewBuilder\Autoload\ViewOverrideLoader;
 use Joomla\Plugin\System\ViewBuilder\Service\FormBuilderHelper;
+use Joomla\Plugin\System\ViewBuilder\Service\TranslationEditorHelper;
 use Joomla\Plugin\System\ViewBuilder\Service\ViewBuilderHelper;
 use Joomla\Plugin\System\ViewBuilder\Service\ViewParser;
 
@@ -64,6 +66,16 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 		);
 
 		\spl_autoload_register([$formFieldLoader, 'loadClass'], true, true);
+
+		if ((int) $this->params->get('enable_translation_editor', 1)) {
+			$textLoader = new TextOverrideLoader(
+				JPATH_LIBRARIES . '/src/Language/Text.php',
+				$pluginPath . '/cache/OriginalText.php',
+				\dirname(__DIR__) . '/Language/Text.php'
+			);
+
+			\spl_autoload_register([$textLoader, 'loadClass'], true, true);
+		}
 	}
 
 	public function onContentPrepareForm($event): void
@@ -198,6 +210,55 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 		foreach ($jsKeys as $key) {
 			Text::script($key);
 		}
+
+		// Translation Editor: inject used translations map for JS
+		if ((int) $this->params->get('enable_translation_editor', 1) && method_exists(Text::class, 'getUsedTranslations')) {
+			$usedTranslations = Text::getUsedTranslations();
+
+			if (!empty($usedTranslations)) {
+				// Build a value-to-keys reverse map for JS matching
+				$reverseMap = [];
+				foreach ($usedTranslations as $key => $value) {
+					$normalized = mb_strtolower(trim($value));
+					if (mb_strlen($normalized) < 2) {
+						continue;
+					}
+					if (!isset($reverseMap[$normalized])) {
+						$reverseMap[$normalized] = [];
+					}
+					$reverseMap[$normalized][] = $key;
+				}
+
+				$doc->addScriptOptions('viewbuilder.translations', $reverseMap);
+			}
+
+			$lang = $app->getLanguage();
+			$clientId = $app->isClient('administrator') ? 1 : 0;
+			$doc->addScriptOptions('viewbuilder.translationEditor', [
+				'enabled'     => true,
+				'currentLang' => $lang->getTag(),
+				'clientId'    => $clientId,
+			]);
+
+			// Register translation editor JS language keys
+			$transEditorKeys = [
+				'PLG_SYSTEM_VIEWBUILDER_JS_TRANS_EDIT_TITLE',
+				'PLG_SYSTEM_VIEWBUILDER_JS_TRANS_SAVE',
+				'PLG_SYSTEM_VIEWBUILDER_JS_TRANS_SAVING',
+				'PLG_SYSTEM_VIEWBUILDER_JS_TRANS_SAVED',
+				'PLG_SYSTEM_VIEWBUILDER_JS_TRANS_SAVE_FAILED',
+				'PLG_SYSTEM_VIEWBUILDER_JS_TRANS_OVERRIDE',
+				'PLG_SYSTEM_VIEWBUILDER_JS_TRANS_ORIGINAL',
+				'PLG_SYSTEM_VIEWBUILDER_JS_TRANS_PICK_KEY',
+				'PLG_SYSTEM_VIEWBUILDER_JS_TRANS_LOADING',
+				'PLG_SYSTEM_VIEWBUILDER_JS_TRANS_REMOVE_OVERRIDE',
+				'PLG_SYSTEM_VIEWBUILDER_JS_TRANS_REMOVING',
+				'PLG_SYSTEM_VIEWBUILDER_JS_TRANS_OVERRIDE_REMOVED',
+			];
+			foreach ($transEditorKeys as $key) {
+				Text::script($key);
+			}
+		}
 	}
 
 	public function onAjaxViewbuilder(AjaxEvent $event): void
@@ -269,6 +330,23 @@ final class ViewBuilderPlugin extends CMSPlugin implements SubscriberInterface
 				break;
 			case 'save_form_field_xml':
 				$result = $this->handleSaveFormFieldXml($input);
+				break;
+			case 'load_translation':
+				$key = $input->getString('key', '');
+				$clientId = $input->getInt('client_id', 0);
+				$result = json_encode(TranslationEditorHelper::loadTranslation($key, $clientId));
+				break;
+			case 'save_translation':
+				$key = $input->getString('key', '');
+				$clientId = $input->getInt('client_id', 0);
+				$translations = $input->get('translations', [], 'array');
+				$result = json_encode(TranslationEditorHelper::saveTranslation($key, $translations, $clientId));
+				break;
+			case 'remove_translation_override':
+				$key = $input->getString('key', '');
+				$tag = $input->getString('tag', '');
+				$clientId = $input->getInt('client_id', 0);
+				$result = json_encode(TranslationEditorHelper::removeTranslationOverride($key, $tag, $clientId));
 				break;
 			default:
 				throw new \RuntimeException(Text::_('PLG_SYSTEM_VIEWBUILDER_UNKNOWN_TASK'), 400);

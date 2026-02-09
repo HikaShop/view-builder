@@ -5,7 +5,7 @@
 	<creationDate>2026-01</creationDate>
 	<copyright>(C) 2026 HikaShop. All rights reserved.</copyright>
 	<license>GNU General Public License version 2 or later</license>
-	<version>1.2.1</version>
+	<version>1.3.0</version>
 	<description>PLG_SYSTEM_VIEWBUILDER_XML_DESCRIPTION</description>
 	<namespace path="src">Joomla\Plugin\System\ViewBuilder</namespace>
 	<files>
@@ -67,6 +67,17 @@
 					description="PLG_SYSTEM_VIEWBUILDER_EXCLUDED_COMPONENTS_DESC"
 					default=""
 				/>
+				<field
+					name="enable_translation_editor"
+					type="radio"
+					label="PLG_SYSTEM_VIEWBUILDER_ENABLE_TRANSLATION_EDITOR"
+					description="PLG_SYSTEM_VIEWBUILDER_ENABLE_TRANSLATION_EDITOR_DESC"
+					default="1"
+					class="btn-group"
+				>
+					<option value="0">JNO</option>
+					<option value="1">JYES</option>
+				</field>
 			</fieldset>
 		</fields>
 	</config>

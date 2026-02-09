@@ -15,6 +15,7 @@ A powerful system plugin for Joomla that allows developers and administrators to
   - Frontend only
   - Frontend & Backend
   - Or via `tp=1` URL parameter (Template Preview mode)
+- **Translation Editor**: Edit language strings directly on the frontend with automatic key detection and override generation.
 - **Easy Revert**: One-click revert to delete the override and restore the original view.
 
 ## Preview
@@ -55,6 +56,15 @@ The plugin now includes a powerful **Form Builder** that allows you to customize
 
 ![Form Builder](screenshots/builder-form.png)
 
+## Translation Editor
+
+Modify website text and translations directly from your site frontend. The editor works by intercepting the Joomla language system, allowing you to click on any text element to see its translation key and original string.
+
+- **Click-to-Edit**: Simply click on any text in the frontend to open the translation editor.
+- **Key Detection**: Automatically identifies the language constant (e.g., `COM_CONTENT_ARTICLE_INFO`).
+- **Safe Overrides**: Creates standard Joomla language overrides in `language/overrides/`.
+- **Search**: If a key cannot be automatically determined, use the built-in search to find the correct string.
+
 ## Installation
 
 1. Download the plugin package.
@@ -72,6 +82,7 @@ Go to **System > Plugins > System - View Builder**.
 | **Mode** | **On Page** (default): drag handles and edit buttons directly on block wrappers in the page. **Popup**: hover labels with edit/builder popups. |
 | **Allowed Groups** | User groups permitted to use the tool (Default: Super Users). |
 | **Excluded Components** | Comma-separated list of components to ignore. |
+| **Enable Translation Editor** | Enable/Disable the frontend translation editing features. |
 
 ## Usage
 
@@ -121,7 +132,7 @@ When the Visual Builder detects these delimiters, it treats the entire section a
 
 The plugin utilizes a modern Joomla 5/6 architecture:
 
-- **Autoloader Interception**: Uses `ViewOverrideLoader` and `FormFieldOverrideLoader` to hook into Joomla's loading mechanism via `spl_autoload_register`. This allows interception of `Joomla\CMS\MVC\View\HtmlView` (for views) and `Joomla\CMS\Form\FormField` (for forms).
+- **Autoloader Interception**: Uses `ViewOverrideLoader`, `FormFieldOverrideLoader`, and `TextOverrideLoader` to hook into Joomla's loading mechanism via `spl_autoload_register`. This allows interception of `Joomla\CMS\MVC\View\HtmlView` (for views), `Joomla\CMS\Form\FormField` (for forms), and `Joomla\CMS\Language\Text` (for translations).
 - **Event Driven**: Subscribes to system events like `onContentPrepareForm` (for form interception), `onBeforeCompileHead` (for assets), and `onAjaxViewbuilder` (for API requests).
 - **Web Asset Manager**: Standard Joomla Web Asset Manager for loading CSS/JS resources.
 - **Override Injection**: 
@@ -133,6 +144,8 @@ The plugin utilizes a modern Joomla 5/6 architecture:
 - `src/Extension/ViewBuilderPlugin.php`: Main entry point handling events and AJAX tasks.
 - `src/Autoload/ViewOverrideLoader.php`: Autoloader that intercepts `HtmlView`.
 - `src/Autoload/FormFieldOverrideLoader.php`: Autoloader that intercepts `FormField`.
+- `src/Autoload/TextOverrideLoader.php`: Autoloader that intercepts `Text`.
+- `src/Language/Text.php`: Replacement `Text` class that tracks used translations.
 - `src/View/HtmlView.php`: Replacement `HtmlView` that wraps output with builder UI.
 - `src/Form/FormField.php`: Replacement `FormField` that wraps field input with drag handles/edit buttons.
 - `src/Service/ViewBuilderHelper.php`: Helper for wrapping view output and managing view overrides.

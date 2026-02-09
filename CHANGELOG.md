@@ -8,13 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.3.0] - TBA
 
 ### Added
+- **Translation Editor**: Edit translation strings directly from the frontend. Just click on any text to verify its key and create an override.
 - **Joomla 4+ Child Template Support**: The plugin now correctly recognizes and uses template overrides from parent templates when using Joomla's child template system.
+- **Translation Map**: Automatically injects a map of used translation keys to the frontend for precise text identification.
 
 ### Changed
 - Updated `ViewBuilderHelper::getOverridePath()` to check both child and parent template folders for existing overrides.
 - Updated `ViewBuilderPlugin::getOverridePath()` with the same parent template fallback logic.
 - Updated `FormBuilderHelper::getFormOverridePath()` to support form XML overrides in parent templates.
 - Added new `ViewBuilderHelper::getParentTemplate()` method to detect child template parent from `templateDetails.xml`.
+- Added `TextOverrideLoader` to intercept `Joomla\CMS\Language\Text` for translation handling.
 
 ## [1.2.1] - 2026-02-08
 
