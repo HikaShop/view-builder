@@ -5,6 +5,11 @@ All notable changes to the "View Builder" Joomla plugin will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-06-07
+
+### Fixed
+- **Install failure on Linux servers**: The release package was created with backslash path separators, which Linux/PHP hosts treat as literal filenames instead of folders. This broke extraction and caused "JSON.parse: unexpected character" and "missing manifest file" errors during install. The package is now built with a cross-platform script that uses standard forward-slash separators.
+
 ## [1.3.0] - TBA
 
 ### Added
